@@ -176,6 +176,7 @@ async def upload_excel(
                 }
 
         for _, row in df.iterrows():
+            print("Inserting:", row["Question"])
             q = Question(
                 exam_id=exam_id,
                 question_text=row["question_text"],
@@ -217,41 +218,75 @@ def get_questions(exam_id: int):
 # =========================================================
 # 7️⃣ SAVE STUDENT ANSWER
 # =========================================================
-@app.post("/save-answer")
-def save_answer(
+@app.post("/upload-excel")
+async def upload_excel(
     exam_id: int = Form(...),
-    student_id: int = Form(...),
-    question_id: int = Form(...),
-    selected_option: str = Form(...),
+    excel_file: UploadFile = File(...),
 ):
+    print("UPLOAD API CALLED")
     db = SessionLocal()
+
     try:
-        correct_row = db.query(Question).filter(Question.id == question_id).first()
-        if not correct_row:
-            return {"error": f"Question ID {question_id} not found"}
+        # Read Excel
+        df = pd.read_excel(excel_file.file)
 
-        is_correct = 1 if correct_row.correct_option == selected_option else 0
-        marks = 1 if is_correct else 0
+        # ✅ VERY IMPORTANT: strip column names
+        df.columns = df.columns.str.strip()
 
-        ans = StudentAnswer(
-            exam_id=exam_id,
-            student_id=student_id,
-            question_id=question_id,
-            selected_option=selected_option,
-            is_correct=is_correct,
-            marks=marks,
-        )
-        db.add(ans)
+        print("EXCEL COLUMNS FOUND:", df.columns.tolist())
+
+        required_cols = [
+            "question_text",
+            "option_a",
+            "option_b",
+            "option_c",
+            "option_d",
+            "correct_option",
+        ]
+
+        for col in required_cols:
+            if col not in df.columns:
+                return {
+                    "error": f"Missing column: {col}",
+                    "found": list(df.columns),
+                }
+
+        inserted = 0
+
+        for index, row in df.iterrows():
+            print(f"Inserting row {index + 1}")
+
+            q = Question(
+                exam_id=exam_id,
+                question_text=str(row["question_text"]),
+                option_a=str(row["option_a"]),
+                option_b=str(row["option_b"]),
+                option_c=str(row["option_c"]),
+                option_d=str(row["option_d"]),
+                correct_option=str(row["correct_option"]),
+            )
+
+            db.add(q)
+            inserted += 1
+
+        print("COMMITTING TO DB...")
         db.commit()
-        print(f"✅ Saved Answer -> QID:{question_id} | Student:{student_id} | Correct:{is_correct}")
-        return {"status": "saved", "is_correct": is_correct, "marks": marks}
+        print("COMMIT SUCCESS")
+
+        return {
+            "message": "Questions uploaded successfully",
+            "rows": inserted,
+            "exam_id": exam_id,
+        }
 
     except Exception as e:
         db.rollback()
-        print("❌ Error saving answer:", e)
+        print("UPLOAD ERROR:", e)
         return {"error": str(e)}
+
     finally:
         db.close()
+
 
 # =========================================================
 # 8️⃣ CALCULATE TOTAL MARKS
