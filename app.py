@@ -148,46 +148,88 @@ def upload_form():
 # =========================================================
 # 5️⃣ API: UPLOAD EXCEL → POSTGRES
 # =========================================================
+# @app.post("/upload-excel")
+# async def upload_excel(
+#     exam_id: int = Form(...),
+#     excel_file: UploadFile = File(...),
+# ):
+#     print("\n🔵 UPLOAD API CALLED!")
+#     print("📁 Received File:", excel_file.filename)
+
+#     db = SessionLocal()
+#     try:
+#         df = pd.read_excel(excel_file.file)
+#         print("📄 Rows loaded:", len(df))
+#     except Exception as e:
+#         print("❌ ERROR reading Excel:", e)
+#         return {"error": "Failed to read Excel file"}
+
+#     try:
+#         for _, row in df.iterrows():
+#             q = Question(
+#                 exam_id=exam_id,
+#                 question_text=row["Question"],
+#                 option_a=row["Option A"],
+#                 option_b=row["Option B"],
+#                 option_c=row["Option C"],
+#                 option_d=row["Option D"],
+#                 correct_option=row["Correct"],  # Excel column
+#             )
+#             db.add(q)
+
+#         db.commit()
+#         print("✅ Questions inserted successfully!")
+#     except Exception as e:
+#         db.rollback()
+#         print("❌ ERROR inserting into DB:", e)
+#         return {"error": "Failed to insert data"}
+
+#     finally:
+#         db.close()
+
+#     return {"message": "Excel uploaded & stored in PostgreSQL!"}
+
+from fastapi import FastAPI, UploadFile, File, Form
+import pandas as pd
+
 @app.post("/upload-excel")
 async def upload_excel(
     exam_id: int = Form(...),
-    excel_file: UploadFile = File(...),
+    excel_file: UploadFile = File(...)
 ):
-    print("\n🔵 UPLOAD API CALLED!")
-    print("📁 Received File:", excel_file.filename)
-
-    db = SessionLocal()
     try:
         df = pd.read_excel(excel_file.file)
-        print("📄 Rows loaded:", len(df))
+
+        required_cols = [
+            "question_text",
+            "option_a",
+            "option_b",
+            "option_c",
+            "option_d",
+            "correct_option"
+        ]
+
+        # ✅ Column validation
+        for col in required_cols:
+            if col not in df.columns:
+                return {
+                    "error": f"Missing column: {col}",
+                    "found": list(df.columns)
+                }
+
+        # TODO: DB insert logic here
+        return {
+            "message": "Questions uploaded successfully",
+            "rows": len(df),
+            "exam_id": exam_id
+        }
+
     except Exception as e:
-        print("❌ ERROR reading Excel:", e)
-        return {"error": "Failed to read Excel file"}
+        return {
+            "error": "Excel processing failed",
+            "details": str(e)
+        }
 
-    try:
-        for _, row in df.iterrows():
-            q = Question(
-                exam_id=exam_id,
-                question_text=row["Question"],
-                option_a=row["Option A"],
-                option_b=row["Option B"],
-                option_c=row["Option C"],
-                option_d=row["Option D"],
-                correct_option=row["Correct"],  # Excel column
-            )
-            db.add(q)
-
-        db.commit()
-        print("✅ Questions inserted successfully!")
-    except Exception as e:
-        db.rollback()
-        print("❌ ERROR inserting into DB:", e)
-        return {"error": "Failed to insert data"}
-
-    finally:
-        db.close()
-
-    return {"message": "Excel uploaded & stored in PostgreSQL!"}
 
 # =========================================================
 # 6️⃣ GET QUESTIONS
