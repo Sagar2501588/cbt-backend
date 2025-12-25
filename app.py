@@ -55,7 +55,7 @@ app.add_middleware(
 # =========================================================
 # 2️⃣ DATABASE SETUP (POSTGRES)
 # =========================================================
-# DATABASE_URL = "postgresql://postgres:sagarsahA%401@localhost:5432/CBT"
+DATABASE_URL = "postgresql://postgres@postgres.railway.internal:5432/railway"
 DATABASE_URL = os.getenv("DATABASE_URL")
 print("Using DB URL:", DATABASE_URL)
 
