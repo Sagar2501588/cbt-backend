@@ -160,12 +160,12 @@ async def upload_excel(
         df = pd.read_excel(excel_file.file)
 
         required_cols = [
-            "Question",
-            "Option A",
-            "Option B",
-            "Option C",
-            "Option D",
-            "Correct"
+            "question_text",
+            "option_a",
+            "option_b",
+            "option_c",
+            "option_d",
+            "correct_option"
         ]
 
         for col in required_cols:
@@ -178,12 +178,12 @@ async def upload_excel(
         for _, row in df.iterrows():
             q = Question(
                 exam_id=exam_id,
-                question_text=row["Question"],
-                option_a=row["Option A"],
-                option_b=row["Option B"],
-                option_c=row["Option C"],
-                option_d=row["Option D"],
-                correct_option=row["Correct"],
+                question_text=row["question_text"],
+                option_a=row["option_a"],
+                option_b=row["option_b"],
+                option_c=row["option_c"],
+                option_d=row["option_d"],
+                correct_option=row["correct_option"],
             )
             db.add(q)
             print("ADDING QUESTION:", row["Question"])
