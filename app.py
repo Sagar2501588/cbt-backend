@@ -9,6 +9,7 @@ import bcrypt
 from Crypto.Cipher import AES
 import base64
 import hashlib
+import os
 
 SECRET_KEY = "Babi@2302"
 
@@ -53,10 +54,15 @@ app.add_middleware(
 # =========================================================
 # 2️⃣ DATABASE SETUP (POSTGRES)
 # =========================================================
-DATABASE_URL = "postgresql://postgres:sagarsahA%401@localhost:5432/CBT"
+# DATABASE_URL = "postgresql://postgres:sagarsahA%401@localhost:5432/CBT"
+DATABASE_URL = os.getenv("DATABASE_URL")
 print("Using DB URL:", DATABASE_URL)
 
-engine = create_engine(DATABASE_URL)
+# engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True
+)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
@@ -104,7 +110,15 @@ class StudentAnswer(Base):
 
 
 # Create tables
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
+@app.on_event("startup")
+def on_startup():
+    with engine.connect() as conn:
+        conn.execute("CREATE SCHEMA IF NOT EXISTS cbt")
+        conn.commit()
+
+    Base.metadata.create_all(bind=engine)
+
 
 # =========================================================
 # 4️⃣ ADMIN: UPLOAD EXCEL PAGE
