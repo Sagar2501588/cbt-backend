@@ -10,6 +10,7 @@ from Crypto.Cipher import AES
 import base64
 import hashlib
 import os
+from sqlalchemy import text
 
 SECRET_KEY = "Babi@2302"
 
@@ -114,7 +115,7 @@ class StudentAnswer(Base):
 @app.on_event("startup")
 def on_startup():
     with engine.connect() as conn:
-        conn.execute("CREATE SCHEMA IF NOT EXISTS cbt")
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS cbt"))
         conn.commit()
 
     Base.metadata.create_all(bind=engine)
