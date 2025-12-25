@@ -7,3 +7,5 @@ psycopg2-binary
 bcrypt
 pycryptodome
 python-multipart
+openpyxl
+
