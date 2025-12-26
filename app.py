@@ -11,6 +11,9 @@ import base64
 import hashlib
 import os
 from sqlalchemy import text
+from dotenv import load_dotenv
+
+load_dotenv() 
 
 SECRET_KEY = "Babi@2302"
 
@@ -221,12 +224,16 @@ def get_questions(exam_id: int):
 @app.post("/save-answer")
 def save_answer(
     exam_id: int = Form(...),
-    student_id: int = Form(...),
+    student_id: str = Form(...),   # 🔥 MUST be string: "STD101"
     question_id: int = Form(...),
     selected_option: str = Form(...),
 ):
     db = SessionLocal()
     try:
+        # 🔥 Convert "STD101" → 101
+        numeric_student_id = int("".join(filter(str.isdigit, student_id)))
+
+        # Check correct answer
         correct_row = db.query(Question).filter(Question.id == question_id).first()
         if not correct_row:
             return {"error": f"Question ID {question_id} not found"}
@@ -234,25 +241,47 @@ def save_answer(
         is_correct = 1 if correct_row.correct_option == selected_option else 0
         marks = 1 if is_correct else 0
 
-        ans = StudentAnswer(
+        # 🔥 Check if answer already exists
+        existing = db.query(StudentAnswer).filter_by(
             exam_id=exam_id,
-            student_id=student_id,
-            question_id=question_id,
-            selected_option=selected_option,
-            is_correct=is_correct,
-            marks=marks,
-        )
-        db.add(ans)
+            student_id=numeric_student_id,
+            question_id=question_id
+        ).first()
+
+        if existing:
+            # UPDATE existing answer
+            existing.selected_option = selected_option
+            existing.is_correct = is_correct
+            existing.marks = marks
+
+            print(f"🔄 UPDATED -> Q:{question_id} Student:{numeric_student_id}")
+
+        else:
+            # INSERT new answer
+            new_ans = StudentAnswer(
+                exam_id=exam_id,
+                student_id=numeric_student_id,
+                question_id=question_id,
+                selected_option=selected_option,
+                is_correct=is_correct,
+                marks=marks,
+            )
+            db.add(new_ans)
+
+            print(f"🆕 INSERTED -> Q:{question_id} Student:{numeric_student_id}")
+
         db.commit()
-        print(f"✅ Saved Answer -> QID:{question_id} | Student:{student_id} | Correct:{is_correct}")
         return {"status": "saved", "is_correct": is_correct, "marks": marks}
 
     except Exception as e:
         db.rollback()
         print("❌ Error saving answer:", e)
         return {"error": str(e)}
+
     finally:
         db.close()
+
+
 
 
 # =========================================================
