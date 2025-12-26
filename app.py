@@ -187,7 +187,7 @@ async def upload_excel(
                 correct_option=row["correct_option"],
             )
             db.add(q)
-            print("ADDING QUESTION:", row["Question"])
+            print("ADDING QUESTION:", row["question_text"])
 
         print("COMMITTING TO DB...")
         db.commit()
