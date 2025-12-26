@@ -176,7 +176,7 @@ async def upload_excel(
                 }
 
         for _, row in df.iterrows():
-            print("Inserting:", row["Question"])
+            print("Inserting:", row["question_text"])
             q = Question(
                 exam_id=exam_id,
                 question_text=row["question_text"],
@@ -218,74 +218,74 @@ def get_questions(exam_id: int):
 # =========================================================
 # 7️⃣ SAVE STUDENT ANSWER
 # =========================================================
-@app.post("/upload-excel")
-async def upload_excel(
-    exam_id: int = Form(...),
-    excel_file: UploadFile = File(...),
-):
-    print("UPLOAD API CALLED")
-    db = SessionLocal()
+# @app.post("/upload-excel")
+# async def upload_excel(
+#     exam_id: int = Form(...),
+#     excel_file: UploadFile = File(...),
+# ):
+#     print("UPLOAD API CALLED")
+#     db = SessionLocal()
 
-    try:
-        # Read Excel
-        df = pd.read_excel(excel_file.file)
+#     try:
+#         # Read Excel
+#         df = pd.read_excel(excel_file.file)
 
-        # ✅ VERY IMPORTANT: strip column names
-        df.columns = df.columns.str.strip()
+#         # ✅ VERY IMPORTANT: strip column names
+#         df.columns = df.columns.str.strip()
 
-        print("EXCEL COLUMNS FOUND:", df.columns.tolist())
+#         print("EXCEL COLUMNS FOUND:", df.columns.tolist())
 
-        required_cols = [
-            "question_text",
-            "option_a",
-            "option_b",
-            "option_c",
-            "option_d",
-            "correct_option",
-        ]
+#         required_cols = [
+#             "question_text",
+#             "option_a",
+#             "option_b",
+#             "option_c",
+#             "option_d",
+#             "correct_option",
+#         ]
 
-        for col in required_cols:
-            if col not in df.columns:
-                return {
-                    "error": f"Missing column: {col}",
-                    "found": list(df.columns),
-                }
+#         for col in required_cols:
+#             if col not in df.columns:
+#                 return {
+#                     "error": f"Missing column: {col}",
+#                     "found": list(df.columns),
+#                 }
 
-        inserted = 0
+#         inserted = 0
 
-        for index, row in df.iterrows():
-            print(f"Inserting row {index + 1}")
+#         for index, row in df.iterrows():
+#             print(f"Inserting row {index + 1}")
 
-            q = Question(
-                exam_id=exam_id,
-                question_text=str(row["question_text"]),
-                option_a=str(row["option_a"]),
-                option_b=str(row["option_b"]),
-                option_c=str(row["option_c"]),
-                option_d=str(row["option_d"]),
-                correct_option=str(row["correct_option"]),
-            )
+#             q = Question(
+#                 exam_id=exam_id,
+#                 question_text=str(row["question_text"]),
+#                 option_a=str(row["option_a"]),
+#                 option_b=str(row["option_b"]),
+#                 option_c=str(row["option_c"]),
+#                 option_d=str(row["option_d"]),
+#                 correct_option=str(row["correct_option"]),
+#             )
 
-            db.add(q)
-            inserted += 1
+#             db.add(q)
+#             inserted += 1
 
-        print("COMMITTING TO DB...")
-        db.commit()
-        print("COMMIT SUCCESS")
+#         print("COMMITTING TO DB...")
+#         db.commit()
+#         print("COMMIT SUCCESS")
 
-        return {
-            "message": "Questions uploaded successfully",
-            "rows": inserted,
-            "exam_id": exam_id,
-        }
+#         return {
+#             "message": "Questions uploaded successfully",
+#             "rows": inserted,
+#             "exam_id": exam_id,
+#         }
 
-    except Exception as e:
-        db.rollback()
-        print("UPLOAD ERROR:", e)
-        return {"error": str(e)}
+#     except Exception as e:
+#         db.rollback()
+#         print("UPLOAD ERROR:", e)
+#         return {"error": str(e)}
 
-    finally:
-        db.close()
+#     finally:
+#         db.close()
 
 
 # =========================================================
