@@ -15,6 +15,8 @@ from sqlalchemy import text
 
 
 
+
+
 SECRET_KEY = "Babi@2302"
 
 def decrypt_data(enc_text):
@@ -86,6 +88,8 @@ class Question(Base):
     option_d = Column(String)
     correct_option = Column(String)
 
+    status = Column(String, default="inactive")
+
 
 class Student(Base):
     __tablename__ = "students"
@@ -106,7 +110,7 @@ class StudentAnswer(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     exam_id = Column(Integer)
-    student_id = Column(Integer)
+    student_id = Column(String)
     question_id = Column(Integer)
     selected_option = Column(String)
     is_correct = Column(Integer)
@@ -218,22 +222,39 @@ def get_questions(exam_id: int):
     db.close()
     return data
 
+@app.get("/active-exam")
+def get_active_exam():
+    db = SessionLocal()
+    try:
+        exam = db.query(Question.exam_id).filter(Question.status == "active").first()
+
+        if not exam:
+            return {"exam_id": None, "status": "no_active_exam"}
+
+        return {"exam_id": exam[0], "status": "active"}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+
+
 # =========================================================
 # 7️⃣ SAVE STUDENT ANSWER
 # =========================================================
 @app.post("/save-answer")
 def save_answer(
     exam_id: int = Form(...),
-    student_id: str = Form(...),   # 🔥 MUST be string: "STD101"
+    student_id: str = Form(...),       # keep original string e.g. "STD101"
     question_id: int = Form(...),
     selected_option: str = Form(...),
 ):
     db = SessionLocal()
     try:
-        # 🔥 Convert "STD101" → 101
-        numeric_student_id = int("".join(filter(str.isdigit, student_id)))
+        real_student_id = student_id.strip()   # string ID
 
-        # Check correct answer
+        # 1️⃣ Fetch correct answer
         correct_row = db.query(Question).filter(Question.id == question_id).first()
         if not correct_row:
             return {"error": f"Question ID {question_id} not found"}
@@ -241,34 +262,29 @@ def save_answer(
         is_correct = 1 if correct_row.correct_option == selected_option else 0
         marks = 1 if is_correct else 0
 
-        # 🔥 Check if answer already exists
+        # 2️⃣ Check if student already answered
         existing = db.query(StudentAnswer).filter_by(
             exam_id=exam_id,
-            student_id=numeric_student_id,
+            student_id=real_student_id,
             question_id=question_id
         ).first()
 
         if existing:
-            # UPDATE existing answer
             existing.selected_option = selected_option
             existing.is_correct = is_correct
             existing.marks = marks
-
-            print(f"🔄 UPDATED -> Q:{question_id} Student:{numeric_student_id}")
-
+            print(f"🔄 UPDATED -> Q:{question_id} Student:{real_student_id}")
         else:
-            # INSERT new answer
             new_ans = StudentAnswer(
                 exam_id=exam_id,
-                student_id=numeric_student_id,
+                student_id=real_student_id,   # ✔ FIXED
                 question_id=question_id,
                 selected_option=selected_option,
                 is_correct=is_correct,
                 marks=marks,
             )
             db.add(new_ans)
-
-            print(f"🆕 INSERTED -> Q:{question_id} Student:{numeric_student_id}")
+            print(f"🆕 INSERTED -> Q:{question_id} Student:{real_student_id}")
 
         db.commit()
         return {"status": "saved", "is_correct": is_correct, "marks": marks}
@@ -284,11 +300,12 @@ def save_answer(
 
 
 
+
 # =========================================================
 # 8️⃣ CALCULATE TOTAL MARKS
 # =========================================================
 @app.get("/calculate-marks/{exam_id}/{student_id}")
-def calculate_marks(exam_id: int, student_id: int):
+def calculate_marks(exam_id: int, student_id: str):
     db = SessionLocal()
     try:
         answers = (
