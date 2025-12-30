@@ -11,9 +11,9 @@ import base64
 import hashlib
 import os
 from sqlalchemy import text
-from dotenv import load_dotenv
 
-load_dotenv() 
+
+
 
 SECRET_KEY = "Babi@2302"
 
