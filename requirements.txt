@@ -8,4 +8,5 @@ bcrypt
 pycryptodome
 python-multipart
 openpyxl
+python-dotenv
 
