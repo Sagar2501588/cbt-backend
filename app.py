@@ -79,16 +79,24 @@ class Question(Base):
     __tablename__ = "questions"
     __table_args__ = {"schema": "cbt"}
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     exam_id = Column(Integer)
+    question_id = Column(Integer)
+    question_mark = Column(Integer, default=1)
+    question_type = Column(String)  # MCQ / MSQ / NAT
     question_text = Column(Text)
+    question_image_url = Column(Text)
+
     option_a = Column(String)
     option_b = Column(String)
     option_c = Column(String)
     option_d = Column(String)
-    correct_option = Column(String)
+
+    correct_option = Column(String)  # MCQ
+    correct_answer = Column(Text)    # MSQ + NAT
 
     status = Column(String, default="inactive")
+
 
 
 class Student(Base):
@@ -160,50 +168,48 @@ async def upload_excel(
     exam_id: int = Form(...),
     excel_file: UploadFile = File(...),
 ):
-    print("UPLOAD API CALLED")
     db = SessionLocal()
 
     try:
         df = pd.read_excel(excel_file.file)
+        df.columns = df.columns.str.strip()
+        df = df.where(pd.notnull(df), None)
+        df = df.dropna(subset=["question_id", "question_text"])
+        print(df.columns.tolist())
 
-        required_cols = [
-            "question_text",
-            "option_a",
-            "option_b",
-            "option_c",
-            "option_d",
-            "correct_option"
+        required = [
+            "question_id", "question_mark", "question_type", "question_text",
+            "question_image_url", "option_a", "option_b", "option_c",
+            "option_d", "correct_option", "correct_answer", "status"
         ]
 
-        for col in required_cols:
+        for col in required:
             if col not in df.columns:
-                return {
-                    "error": f"Missing column: {col}",
-                    "found": list(df.columns)
-                }
+                return {"error": f"Missing column: {col}"}
 
         for _, row in df.iterrows():
-            print("Inserting:", row["question_text"])
             q = Question(
-                exam_id=exam_id,
-                question_text=row["question_text"],
-                option_a=row["option_a"],
-                option_b=row["option_b"],
-                option_c=row["option_c"],
-                option_d=row["option_d"],
-                correct_option=row["correct_option"],
-            )
-            db.add(q)
-            print("ADDING QUESTION:", row["question_text"])
+                exam_id = exam_id,
+                question_id = row["question_id"],
+                question_mark = row["question_mark"],
+                question_type = row["question_type"],
+                question_text = row["question_text"],
+                question_image_url = row["question_image_url"],
 
-        print("COMMITTING TO DB...")
+                option_a = row["option_a"],
+                option_b = row["option_b"],
+                option_c = row["option_c"],
+                option_d = row["option_d"],
+
+                correct_option = row["correct_option"],
+                correct_answer = row["correct_answer"],
+                status = row["status"]
+            )
+
+            db.add(q)
+
         db.commit()
-        print("COMMIT DONE")
-        return {
-            "message": "Questions uploaded successfully",
-            "rows": len(df),
-            "exam_id": exam_id
-        }
+        return {"message": "Uploaded successfully", "rows": len(df)}
 
     except Exception as e:
         db.rollback()
@@ -211,6 +217,7 @@ async def upload_excel(
 
     finally:
         db.close()
+
 
 # =========================================================
 # 6️⃣ GET QUESTIONS
