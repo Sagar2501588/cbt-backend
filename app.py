@@ -253,24 +253,59 @@ async def upload_excel(
 @app.get("/questions/{exam_id}")
 def get_questions(exam_id: int):
     db = SessionLocal()
-    data = db.query(Question).filter(Question.exam_id == exam_id).all()
-    db.close()
-    return data
+    try:
+        questions = db.query(Question).filter(Question.exam_id == exam_id).all()
+
+        result = []
+        for q in questions:
+            result.append({
+                "id": q.id,
+                "exam_id": q.exam_id,
+                "question_id": q.question_id,
+                "question_mark": q.question_mark,
+                "question_type": q.question_type,
+                "question_text": q.question_text,
+                "question_image_url": q.question_image_url,   # ✅ important for showing images
+
+                "option_a": q.option_a,
+                "option_b": q.option_b,
+                "option_c": q.option_c,
+                "option_d": q.option_d,
+
+                # "correct_option": q.correct_option,          # optional (MCQ)
+                # "correct_answer": q.correct_answer,          # optional (NAT/MSQ)
+                "status": q.status,
+            })
+
+        return result
+
+    except Exception as e:
+        return {"error": str(e)}
+
+    finally:
+        db.close()
+
 
 @app.get("/active-exam")
 def get_active_exam():
     db = SessionLocal()
     try:
-        exam = db.query(Question.exam_id).filter(Question.status == "active").first()
+        exam = db.query(Question.exam_id)\
+                 .filter(Question.status == "active")\
+                 .distinct()\
+                 .first()
 
         if not exam:
             return {"exam_id": None, "status": "no_active_exam"}
 
         return {"exam_id": exam[0], "status": "active"}
+
     except Exception as e:
         return {"error": str(e)}
+
     finally:
         db.close()
+
 
 
 
@@ -281,23 +316,63 @@ def get_active_exam():
 @app.post("/save-answer")
 def save_answer(
     exam_id: int = Form(...),
-    student_id: str = Form(...),       # keep original string e.g. "STD101"
-    question_id: int = Form(...),
-    selected_option: str = Form(...),
+    student_id: str = Form(...),
+    question_id: int = Form(...),        # Question table PK (id)
+    selected_option: str = Form(...),    # MCQ: "A" | MSQ: "A,B,D" | NAT: "73"
 ):
     db = SessionLocal()
     try:
-        real_student_id = student_id.strip()   # string ID
+        real_student_id = student_id.strip()
 
-        # 1️⃣ Fetch correct answer
-        correct_row = db.query(Question).filter(Question.id == question_id).first()
-        if not correct_row:
+        # ✅ Get question
+        q = db.query(Question).filter(Question.id == question_id).first()
+        if not q:
             return {"error": f"Question ID {question_id} not found"}
 
-        is_correct = 1 if correct_row.correct_option == selected_option else 0
-        marks = 1 if is_correct else 0
+        qtype = (q.question_type or "").upper().strip()
 
-        # 2️⃣ Check if student already answered
+        is_correct = 0
+        marks = 0
+
+        # ---------------- MCQ ----------------
+        if qtype == "MCQ":
+            is_correct = 1 if (q.correct_option == selected_option.strip()) else 0
+            marks = q.question_mark if is_correct else 0
+
+        # ---------------- MSQ ----------------
+        elif qtype == "MSQ":
+            # correct_answer format: "A,B,D"
+            correct_raw = (q.correct_answer or "").replace(" ", "").upper().strip()
+            selected_raw = (selected_option or "").replace(" ", "").upper().strip()
+
+            correct_set = set([x for x in correct_raw.split(",") if x])
+            selected_set = set([x for x in selected_raw.split(",") if x])
+
+            is_correct = 1 if correct_set == selected_set else 0
+            marks = q.question_mark if is_correct else 0
+
+        # ---------------- NAT ----------------
+        elif qtype == "NAT":
+            correct_ans = (q.correct_answer or "").strip()
+            user_ans = (selected_option or "").strip()
+
+            # ✅ numeric compare with tolerance
+            try:
+                correct_val = float(correct_ans)
+                user_val = float(user_ans)
+
+                # tolerance 0.01 (customizable)
+                is_correct = 1 if abs(correct_val - user_val) <= 0.01 else 0
+            except:
+                # fallback text compare
+                is_correct = 1 if correct_ans.lower() == user_ans.lower() else 0
+
+            marks = q.question_mark if is_correct else 0
+
+        else:
+            return {"error": f"Unknown question_type: {qtype}"}
+
+        # ✅ Save/update student answer
         existing = db.query(StudentAnswer).filter_by(
             exam_id=exam_id,
             student_id=real_student_id,
@@ -308,33 +383,25 @@ def save_answer(
             existing.selected_option = selected_option
             existing.is_correct = is_correct
             existing.marks = marks
-            print(f"🔄 UPDATED -> Q:{question_id} Student:{real_student_id}")
         else:
             new_ans = StudentAnswer(
                 exam_id=exam_id,
-                student_id=real_student_id,   # ✔ FIXED
+                student_id=real_student_id,
                 question_id=question_id,
                 selected_option=selected_option,
                 is_correct=is_correct,
                 marks=marks,
             )
             db.add(new_ans)
-            print(f"🆕 INSERTED -> Q:{question_id} Student:{real_student_id}")
 
         db.commit()
-        return {"status": "saved", "is_correct": is_correct, "marks": marks}
+        return {"status": "saved", "type": qtype, "is_correct": is_correct, "marks": marks}
 
     except Exception as e:
         db.rollback()
-        print("❌ Error saving answer:", e)
         return {"error": str(e)}
-
     finally:
         db.close()
-
-
-
-
 
 # =========================================================
 # 8️⃣ CALCULATE TOTAL MARKS
