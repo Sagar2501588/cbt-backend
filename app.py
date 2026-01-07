@@ -11,6 +11,7 @@ import base64
 import hashlib
 import os
 from sqlalchemy import text
+import numpy as np
 
 
 
@@ -168,48 +169,75 @@ async def upload_excel(
     exam_id: int = Form(...),
     excel_file: UploadFile = File(...),
 ):
-    db = SessionLocal()
+    db: Session = SessionLocal()
 
     try:
+        # ✅ Read Excel
         df = pd.read_excel(excel_file.file)
-        df.columns = df.columns.str.strip()
-        df = df.where(pd.notnull(df), None)
-        df = df.dropna(subset=["question_id", "question_text"])
-        print(df.columns.tolist())
 
+        # ✅ Remove hidden spaces from headers
+        df.columns = df.columns.str.strip()
+
+        # ✅ Replace NaN with None
+        df = df.where(pd.notnull(df), None)
+
+        # ✅ Drop rows missing mandatory fields
+        df = df.dropna(subset=["question_id", "question_text"])
+
+        # ✅ Required columns check
         required = [
             "question_id", "question_mark", "question_type", "question_text",
             "question_image_url", "option_a", "option_b", "option_c",
             "option_d", "correct_option", "correct_answer", "status"
         ]
 
-        for col in required:
-            if col not in df.columns:
-                return {"error": f"Missing column: {col}"}
+        missing = [col for col in required if col not in df.columns]
+        if missing:
+            return {"error": f"Missing columns: {missing}"}
 
+        # ✅ Force numeric conversion (IMPORTANT FIX)
+        df["question_id"] = pd.to_numeric(df["question_id"], errors="coerce")
+        df["question_mark"] = pd.to_numeric(df["question_mark"], errors="coerce")
+
+        # ✅ Drop invalid numeric rows
+        df = df.dropna(subset=["question_id", "question_mark"])
+
+        # ✅ Convert numeric float -> int safely
+        df["question_id"] = df["question_id"].astype(int)
+        df["question_mark"] = df["question_mark"].astype(int)
+
+        # ✅ Debug first row (optional)
+        print("COLUMNS:", df.columns.tolist())
+        print("FIRST ROW:", df.iloc[0].to_dict())
+
+        inserted = 0
+
+        # ✅ Insert row by row safely
         for _, row in df.iterrows():
             q = Question(
-                exam_id = exam_id,
-                question_id = row["question_id"],
-                question_mark = row["question_mark"],
-                question_type = row["question_type"],
-                question_text = row["question_text"],
-                question_image_url = row["question_image_url"],
+                exam_id=exam_id,
+                question_id=int(row["question_id"]),
+                question_mark=int(row["question_mark"]),
+                question_type=str(row["question_type"]) if row["question_type"] else None,
+                question_text=str(row["question_text"]) if row["question_text"] else None,
+                question_image_url=str(row["question_image_url"]) if row["question_image_url"] else None,
 
-                option_a = row["option_a"],
-                option_b = row["option_b"],
-                option_c = row["option_c"],
-                option_d = row["option_d"],
+                option_a=str(row["option_a"]) if row["option_a"] else None,
+                option_b=str(row["option_b"]) if row["option_b"] else None,
+                option_c=str(row["option_c"]) if row["option_c"] else None,
+                option_d=str(row["option_d"]) if row["option_d"] else None,
 
-                correct_option = row["correct_option"],
-                correct_answer = row["correct_answer"],
-                status = row["status"]
+                correct_option=str(row["correct_option"]) if row["correct_option"] else None,
+                correct_answer=str(row["correct_answer"]) if row["correct_answer"] else None,
+                status=str(row["status"]) if row["status"] else "inactive"
             )
 
             db.add(q)
+            inserted += 1
 
         db.commit()
-        return {"message": "Uploaded successfully", "rows": len(df)}
+
+        return {"message": "Uploaded successfully", "rows_inserted": inserted}
 
     except Exception as e:
         db.rollback()
