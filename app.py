@@ -320,6 +320,8 @@ def save_answer(
     question_id: int = Form(...),        # Question table PK (id)
     selected_option: str = Form(...),    # MCQ: "A" | MSQ: "A,B,D" | NAT: "73"
 ):
+    print("SAVE:", exam_id, student_id, question_id, selected_option)
+
     db = SessionLocal()
     try:
         real_student_id = student_id.strip()
@@ -356,21 +358,32 @@ def save_answer(
             correct_ans = (q.correct_answer or "").strip()
             user_ans = (selected_option or "").strip()
 
-            # ✅ numeric compare with tolerance
+            # ✅ user must be numeric
             try:
-                correct_val = float(correct_ans)
                 user_val = float(user_ans)
-
-                # tolerance 0.01 (customizable)
-                is_correct = 1 if abs(correct_val - user_val) <= 0.01 else 0
             except:
-                # fallback text compare
-                is_correct = 1 if correct_ans.lower() == user_ans.lower() else 0
+                is_correct = 0
+                marks = 0
+            else:
+                # ✅ check if correct_ans is a range like "3.71 to 3.75"
+                if "to" in correct_ans.lower():
+                    parts = correct_ans.lower().split("to")
+                    try:
+                        low = float(parts[0].strip())
+                        high = float(parts[1].strip())
+                        is_correct = 1 if (low <= user_val <= high) else 0
+                    except:
+                        is_correct = 0
+                else:
+                    # ✅ single numeric answer case
+                    try:
+                        correct_val = float(correct_ans)
+                        is_correct = 1 if abs(correct_val - user_val) <= 0.01 else 0
+                    except:
+                        is_correct = 0
 
-            marks = q.question_mark if is_correct else 0
+                marks = q.question_mark if is_correct else 0
 
-        else:
-            return {"error": f"Unknown question_type: {qtype}"}
 
         # ✅ Save/update student answer
         existing = db.query(StudentAnswer).filter_by(
