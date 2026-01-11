@@ -565,17 +565,16 @@ def register_student(
 def start_exam(exam_id: int = Form(...), student_id: str = Form(...)):
     db = SessionLocal()
     try:
-        attempt = db.query(ExamAttempt).filter_by(
+        existing = db.query(ExamAttempt).filter_by(
             exam_id=exam_id,
             student_id=student_id
         ).first()
 
-        if attempt:
-            if attempt.is_submitted == 1:
-                return {"error": "You have already submitted this exam."}
-            else:
-                return {"status": "continue"}   # exam was started earlier
+        # ❌ If exam was already started once → block immediately
+        if existing:
+            return {"error": "You have already started this exam. You cannot attempt again."}
 
+        # ✔ Create new attempt
         new_attempt = ExamAttempt(
             exam_id=exam_id,
             student_id=student_id,
@@ -588,7 +587,7 @@ def start_exam(exam_id: int = Form(...), student_id: str = Form(...)):
 
     finally:
         db.close()
-from datetime import datetime
+
 
 @app.post("/submit-exam")
 def submit_exam(exam_id: int = Form(...), student_id: str = Form(...)):
