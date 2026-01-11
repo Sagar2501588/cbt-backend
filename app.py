@@ -12,6 +12,7 @@ import hashlib
 import os
 from sqlalchemy import text
 import numpy as np
+from sqlalchemy import Float
 
 
 
@@ -123,7 +124,19 @@ class StudentAnswer(Base):
     question_id = Column(Integer)
     selected_option = Column(String)
     is_correct = Column(Integer)
-    marks = Column(Integer)
+    # marks = Column(Integer)
+    marks = Column(Float)
+
+class ExamAttempt(Base):
+    __tablename__ = "exam_attempts"
+    __table_args__ = {"schema": "cbt"}
+
+    id = Column(Integer, primary_key=True)
+    exam_id = Column(Integer, nullable=False)
+    student_id = Column(String, nullable=False)
+    is_submitted = Column(Integer, default=0)   # 0 = running, 1 = submitted
+    submitted_at = Column(String, nullable=True)
+
 
 
 # Create tables
@@ -317,8 +330,8 @@ def get_active_exam():
 def save_answer(
     exam_id: int = Form(...),
     student_id: str = Form(...),
-    question_id: int = Form(...),        # Question table PK (id)
-    selected_option: str = Form(...),    # MCQ: "A" | MSQ: "A,B,D" | NAT: "73"
+    question_id: int = Form(...),
+    selected_option: str = Form(...),
 ):
     print("SAVE:", exam_id, student_id, question_id, selected_option)
 
@@ -326,46 +339,68 @@ def save_answer(
     try:
         real_student_id = student_id.strip()
 
-        # ✅ Get question
+
+        attempt = db.query(ExamAttempt).filter_by(
+            exam_id=exam_id,
+            student_id=real_student_id
+        ).first()
+
+        if attempt and attempt.is_submitted == 1:
+            return {
+                "error": "You have already submitted this exam. Answers cannot be changed."
+            }
+
+        # ✅ Load question
         q = db.query(Question).filter(Question.id == question_id).first()
         if not q:
             return {"error": f"Question ID {question_id} not found"}
 
-        qtype = (q.question_type or "").upper().strip()
-
+        qtype = (q.question_type or "").upper().strip()   # MCQ, MSQ, NAT
         is_correct = 0
         marks = 0
 
-        # ---------------- MCQ ----------------
+        # ===================== MCQ =====================
         if qtype == "MCQ":
-            is_correct = 1 if (q.correct_option == selected_option.strip()) else 0
-            marks = q.question_mark if is_correct else 0
+            user_ans = selected_option.strip()
+            correct_ans = (q.correct_option or "").strip()
 
-        # ---------------- MSQ ----------------
+            is_correct = 1 if (user_ans == correct_ans) else 0
+
+            if is_correct:
+                marks = q.question_mark       # +1 or +2
+            else:
+                # Negative marking
+                if q.question_mark == 1:
+                    marks = -1/3              # -0.333
+                elif q.question_mark == 2:
+                    marks = -2/3              # -0.666
+                else:
+                    marks = 0
+
+        # ===================== MSQ =====================
         elif qtype == "MSQ":
             # correct_answer format: "A,B,D"
-            correct_raw = (q.correct_answer or "").replace(" ", "").upper().strip()
-            selected_raw = (selected_option or "").replace(" ", "").upper().strip()
+            correct_raw = (q.correct_answer or "").replace(" ", "").upper()
+            selected_raw = (selected_option or "").replace(" ", "").upper()
 
             correct_set = set([x for x in correct_raw.split(",") if x])
             selected_set = set([x for x in selected_raw.split(",") if x])
 
             is_correct = 1 if correct_set == selected_set else 0
-            marks = q.question_mark if is_correct else 0
+            marks = q.question_mark if is_correct else 0   # NO NEGATIVE MARKING
 
-        # ---------------- NAT ----------------
+        # ===================== NAT =====================
         elif qtype == "NAT":
             correct_ans = (q.correct_answer or "").strip()
             user_ans = (selected_option or "").strip()
 
-            # ✅ user must be numeric
             try:
                 user_val = float(user_ans)
             except:
                 is_correct = 0
                 marks = 0
             else:
-                # ✅ check if correct_ans is a range like "3.71 to 3.75"
+                # Range support: "3.71 to 3.75"
                 if "to" in correct_ans.lower():
                     parts = correct_ans.lower().split("to")
                     try:
@@ -375,17 +410,15 @@ def save_answer(
                     except:
                         is_correct = 0
                 else:
-                    # ✅ single numeric answer case
                     try:
                         correct_val = float(correct_ans)
                         is_correct = 1 if abs(correct_val - user_val) <= 0.01 else 0
                     except:
                         is_correct = 0
 
-                marks = q.question_mark if is_correct else 0
+                marks = q.question_mark if is_correct else 0   # NO NEGATIVE
 
-
-        # ✅ Save/update student answer
+        # ===================== SAVE / UPDATE =====================
         existing = db.query(StudentAnswer).filter_by(
             exam_id=exam_id,
             student_id=real_student_id,
@@ -408,13 +441,21 @@ def save_answer(
             db.add(new_ans)
 
         db.commit()
-        return {"status": "saved", "type": qtype, "is_correct": is_correct, "marks": marks}
+        return {
+            "status": "saved",
+            "type": qtype,
+            "is_correct": is_correct,
+            "marks": marks
+        }
 
     except Exception as e:
         db.rollback()
+        print("❌ ERROR in save-answer:", e)
         return {"error": str(e)}
+
     finally:
         db.close()
+
 
 # =========================================================
 # 8️⃣ CALCULATE TOTAL MARKS
@@ -517,6 +558,63 @@ def register_student(
 
     finally:
         db.close()
+
+
+
+@app.post("/start-exam")
+def start_exam(exam_id: int = Form(...), student_id: str = Form(...)):
+    db = SessionLocal()
+    try:
+        attempt = db.query(ExamAttempt).filter_by(
+            exam_id=exam_id,
+            student_id=student_id
+        ).first()
+
+        if attempt:
+            if attempt.is_submitted == 1:
+                return {"error": "You have already submitted this exam."}
+            else:
+                return {"status": "continue"}   # exam was started earlier
+
+        new_attempt = ExamAttempt(
+            exam_id=exam_id,
+            student_id=student_id,
+            is_submitted=0
+        )
+        db.add(new_attempt)
+        db.commit()
+
+        return {"status": "started"}
+
+    finally:
+        db.close()
+from datetime import datetime
+
+@app.post("/submit-exam")
+def submit_exam(exam_id: int = Form(...), student_id: str = Form(...)):
+    db = SessionLocal()
+    try:
+        attempt = db.query(ExamAttempt).filter_by(
+            exam_id=exam_id,
+            student_id=student_id
+        ).first()
+
+        if not attempt:
+            return {"error": "Exam not started!"}
+
+        if attempt.is_submitted == 1:
+            return {"error": "Exam already submitted!"}
+
+        attempt.is_submitted = 1
+        attempt.submitted_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        db.commit()
+
+        return {"status": "submitted"}
+
+    finally:
+        db.close()
+
 
 
 
