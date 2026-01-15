@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>LaTeX Converter</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"></script>
+
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    textarea { width: 100%; height: 80px; }
+    .output { margin-top: 20px; font-size: 22px; }
+  </style>
+</head>
+<body>
+
+<h3>LaTeX → Math Converter</h3>
+
+<textarea id="input">
+1 - \exp\left( \frac{D^{2}(u,v)}{2D_{0}^{2}} \right)
+</textarea>
+
+<button onclick="convert()">Convert</button>
+
+<div id="output" class="output"></div>
+
+<script>
+function convert() {
+  const input = document.getElementById("input").value;
+  const output = document.getElementById("output");
+  output.innerHTML = input;
+  renderMathInElement(output, {
+    delimiters: [{left: "", right: "", display: true}]
+  });
+}
+</script>
+
+</body>
+</html>
