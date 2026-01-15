@@ -13,6 +13,7 @@ import os
 from sqlalchemy import text
 import numpy as np
 from sqlalchemy import Float
+from sqlalchemy import Boolean
 
 
 
@@ -134,7 +135,8 @@ class ExamAttempt(Base):
     id = Column(Integer, primary_key=True)
     exam_id = Column(Integer, nullable=False)
     student_id = Column(String, nullable=False)
-    is_submitted = Column(Integer, default=0)   # 0 = running, 1 = submitted
+    # is_submitted = Column(Integer, default=0)
+    is_submitted = Column(Boolean, default=False)   # 0 = running, 1 = submitted
     submitted_at = Column(String, nullable=True)
 
 
@@ -345,7 +347,7 @@ def save_answer(
             student_id=real_student_id
         ).first()
 
-        if attempt and attempt.is_submitted == 1:
+        if attempt and attempt.is_submitted == True:
             return {
                 "error": "You have already submitted this exam. Answers cannot be changed."
             }
@@ -609,7 +611,7 @@ def start_exam(exam_id: int = Form(...), student_id: str = Form(...)):
         new_attempt = ExamAttempt(
             exam_id=exam_id,
             student_id=student_id,
-            is_submitted=0
+            is_submitted=False
         )
         db.add(new_attempt)
         db.commit()
@@ -638,10 +640,10 @@ def submit_exam(exam_id: int = Form(...), student_id: str = Form(...)):
         if not attempt:
             return {"error": "Exam not started!"}
 
-        if attempt.is_submitted == 1:
+        if attempt.is_submitted == True:
             return {"error": "Exam already submitted!"}
 
-        attempt.is_submitted = 1
+        attempt.is_submitted = True
         attempt.submitted_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         db.commit()
