@@ -561,8 +561,41 @@ def register_student(
 
 
 
+# @app.post("/start-exam")
+# def start_exam(exam_id: int = Form(...), student_id: str = Form(...)):
+#     db = SessionLocal()
+#     try:
+#         existing = db.query(ExamAttempt).filter_by(
+#             exam_id=exam_id,
+#             student_id=student_id
+#         ).first()
+
+#         # ❌ If exam was already started once → block immediately
+#         if existing:
+#             return {"error": "You have already started this exam. You cannot attempt again."}
+
+#         # ✔ Create new attempt
+#         new_attempt = ExamAttempt(
+#             exam_id=exam_id,
+#             student_id=student_id,
+#             is_submitted=0
+#         )
+#         db.add(new_attempt)
+#         db.commit()
+
+#         return {"status": "started"}
+
+#     finally:
+#         db.close()
+
 @app.post("/start-exam")
 def start_exam(exam_id: int = Form(...), student_id: str = Form(...)):
+    if exam_id is None:
+        return {"error": "Invalid exam id"}
+
+    if not student_id:
+        return {"error": "Invalid student id"}
+
     db = SessionLocal()
     try:
         existing = db.query(ExamAttempt).filter_by(
@@ -570,11 +603,9 @@ def start_exam(exam_id: int = Form(...), student_id: str = Form(...)):
             student_id=student_id
         ).first()
 
-        # ❌ If exam was already started once → block immediately
         if existing:
-            return {"error": "You have already started this exam. You cannot attempt again."}
+            return {"error": "You have already started this exam."}
 
-        # ✔ Create new attempt
         new_attempt = ExamAttempt(
             exam_id=exam_id,
             student_id=student_id,
@@ -585,8 +616,14 @@ def start_exam(exam_id: int = Form(...), student_id: str = Form(...)):
 
         return {"status": "started"}
 
+    except Exception as e:
+        db.rollback()
+        print("START EXAM ERROR:", e)
+        return {"error": str(e)}
+
     finally:
         db.close()
+
 
 
 @app.post("/submit-exam")
