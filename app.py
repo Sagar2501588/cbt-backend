@@ -301,25 +301,46 @@ def get_questions(exam_id: int):
         db.close()
 
 
+# @app.get("/active-exam")
+# def get_active_exam():
+#     db = SessionLocal()
+#     try:
+#         exam = db.query(Question.exam_id)\
+#                  .filter(Question.status == "active")\
+#                  .distinct()\
+#                  .first()
+
+#         if not exam:
+#             return {"exam_id": None, "status": "no_active_exam"}
+
+#         return {"exam_id": exam[0], "status": "active"}
+
+#     except Exception as e:
+#         return {"error": str(e)}
+
+#     finally:
+#         db.close()
+
 @app.get("/active-exam")
 def get_active_exam():
     db = SessionLocal()
     try:
+        # Check if there is at least one question with ACTIVE status
         exam = db.query(Question.exam_id)\
-                 .filter(Question.status == "active")\
+                 .filter(Question.status == "ACTIVE")\
                  .distinct()\
                  .first()
 
         if not exam:
             return {"exam_id": None, "status": "no_active_exam"}
 
-        return {"exam_id": exam[0], "status": "active"}
+        return {"exam_id": exam.exam_id, "status": "active"}
 
     except Exception as e:
         return {"error": str(e)}
-
     finally:
         db.close()
+
 
 
 
