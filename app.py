@@ -14,6 +14,7 @@ from sqlalchemy import text
 import numpy as np
 from sqlalchemy import Float
 from sqlalchemy import Boolean
+import uuid
 
 
 
@@ -539,6 +540,50 @@ def login_student(email: str = Form(...), password: str = Form(...)):
 # =========================================================
 # 🔟 STUDENT register
 # =========================================================
+# @app.post("/register-student")
+# def register_student(
+#     name: str = Form(...),
+#     email: str = Form(...),
+#     mobile: str = Form(...),
+#     password: str = Form(...),
+# ):
+#     db = SessionLocal()
+#     try:
+#         existing = db.query(Student).count()
+#         student_id = f"STD{100 + existing + 1}"
+
+#         # email already exists
+#         if db.query(Student).filter(Student.email == email).first():
+#             return {"error": "Email already registered!"}
+
+#         # password bcrypt hash
+#         final_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+#         # save plaintext email & mobile
+#         new_student = Student(
+#             student_id=student_id,
+#             name=name,
+#             email=email,
+#             mobile=mobile,
+#             password=final_hash,
+#         )
+
+#         db.add(new_student)
+#         db.commit()
+
+#         return {
+#             "status": "registered",
+#             "student_id": student_id,
+#         }
+
+#     except Exception as e:
+#         db.rollback()
+#         return {"error": str(e)}
+
+#     finally:
+#         db.close()
+
+
 @app.post("/register-student")
 def register_student(
     name: str = Form(...),
@@ -548,17 +593,20 @@ def register_student(
 ):
     db = SessionLocal()
     try:
-        existing = db.query(Student).count()
-        student_id = f"STD{100 + existing + 1}"
+        # ✅ Generate SAFE & UNIQUE student_id
+        student_id = f"STD{uuid.uuid4().hex[:6].upper()}"
 
-        # email already exists
+        # ❌ Email already exists check
         if db.query(Student).filter(Student.email == email).first():
             return {"error": "Email already registered!"}
 
-        # password bcrypt hash
-        final_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        # 🔐 Password bcrypt hash
+        final_hash = bcrypt.hashpw(
+            password.encode("utf-8"),
+            bcrypt.gensalt()
+        ).decode("utf-8")
 
-        # save plaintext email & mobile
+        # ✅ Create new student
         new_student = Student(
             student_id=student_id,
             name=name,
@@ -583,33 +631,6 @@ def register_student(
         db.close()
 
 
-
-# @app.post("/start-exam")
-# def start_exam(exam_id: int = Form(...), student_id: str = Form(...)):
-#     db = SessionLocal()
-#     try:
-#         existing = db.query(ExamAttempt).filter_by(
-#             exam_id=exam_id,
-#             student_id=student_id
-#         ).first()
-
-#         # ❌ If exam was already started once → block immediately
-#         if existing:
-#             return {"error": "You have already started this exam. You cannot attempt again."}
-
-#         # ✔ Create new attempt
-#         new_attempt = ExamAttempt(
-#             exam_id=exam_id,
-#             student_id=student_id,
-#             is_submitted=0
-#         )
-#         db.add(new_attempt)
-#         db.commit()
-
-#         return {"status": "started"}
-
-#     finally:
-#         db.close()
 
 @app.post("/start-exam")
 def start_exam(exam_id: int = Form(...), student_id: str = Form(...)):
