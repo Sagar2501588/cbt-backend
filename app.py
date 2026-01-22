@@ -584,6 +584,53 @@ def login_student(email: str = Form(...), password: str = Form(...)):
 #         db.close()
 
 
+# @app.post("/register-student")
+# def register_student(
+#     name: str = Form(...),
+#     email: str = Form(...),
+#     mobile: str = Form(...),
+#     password: str = Form(...),
+# ):
+#     db = SessionLocal()
+#     try:
+#         # ✅ Generate SAFE & UNIQUE student_id
+#         student_id = f"STD{uuid.uuid4().hex[:6].upper()}"
+
+#         # ❌ Email already exists check
+#         if db.query(Student).filter(Student.email == email).first():
+#             return {"error": "Email already registered!"}
+
+#         # 🔐 Password bcrypt hash
+#         final_hash = bcrypt.hashpw(
+#             password.encode("utf-8"),
+#             bcrypt.gensalt()
+#         ).decode("utf-8")
+
+#         # ✅ Create new student
+#         new_student = Student(
+#             student_id=student_id,
+#             name=name,
+#             email=email,
+#             mobile=mobile,
+#             password=final_hash,
+#         )
+
+#         db.add(new_student)
+#         db.commit()
+
+#         return {
+#             "status": "registered",
+#             "student_id": student_id,
+#         }
+
+#     except Exception as e:
+#         db.rollback()
+#         return {"error": str(e)}
+
+#     finally:
+#         db.close()
+
+
 @app.post("/register-student")
 def register_student(
     name: str = Form(...),
@@ -598,7 +645,10 @@ def register_student(
 
         # ❌ Email already exists check
         if db.query(Student).filter(Student.email == email).first():
-            return {"error": "Email already registered!"}
+            return {
+                "status": "error",
+                "message": "Email already registered!"
+            }
 
         # 🔐 Password bcrypt hash
         final_hash = bcrypt.hashpw(
@@ -619,16 +669,21 @@ def register_student(
         db.commit()
 
         return {
-            "status": "registered",
+            "status": "success",
+            "message": "Student registered successfully",
             "student_id": student_id,
         }
 
     except Exception as e:
         db.rollback()
-        return {"error": str(e)}
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
     finally:
         db.close()
+
 
 
 
