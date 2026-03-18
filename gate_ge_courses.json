@@ -1,0 +1,104 @@
+[
+    {
+        "course_name": "SANKALP (Part B1)",
+        "course_id": "sankalp-b1",
+        "type": "Paid",
+        "price_inr": 5000,
+        "access_duration": "Lifetime",
+        "activation": "14 Apr 2026",
+        "short_description": "Complete GATE GE preparation covering Part A and Part B1 with recorded lectures.",
+        "curriculum_topics": [
+            "Engineering Mathematics (Part A)",
+            "General Engineering topics (Part A)",
+            "Core Subject Topics (Part B1)",
+            "Practice & Concept Sessions"
+        ],
+        "total_videos": "80-120",
+        "notes": "Recorded lectures available"
+    },
+    {
+        "course_name": "SANKALP (Part B2)",
+        "course_id": "sankalp-b2",
+        "type": "Paid",
+        "price_inr": 5000,
+        "access_duration": "Lifetime",
+        "activation": "14 Apr 2026",
+        "short_description": "Complete GATE GE preparation covering Part A and Part B2.",
+        "curriculum_topics": [
+            "Engineering Mathematics (Part A)",
+            "General Engineering topics (Part A)",
+            "Core Subject Topics (Part B2)",
+            "Practice Sessions"
+        ],
+        "total_videos": "80-120",
+        "notes": "Recorded lectures available"
+    },
+    {
+        "course_name": "PRITHVI",
+        "course_id": "prithvi",
+        "type": "Paid",
+        "price_inr": 3000,
+        "access_duration": "Lifetime",
+        "activation": "14 Apr 2026",
+        "short_description": "Focused course covering GATE GE Part A topics.",
+        "curriculum_topics": [
+            "Engineering Mathematics",
+            "General Engineering",
+            "Concept building",
+            "Practice sessions"
+        ],
+        "total_videos": "50-80",
+        "notes": "Recorded lectures available"
+    },
+    {
+        "course_name": "DISHANTAR",
+        "course_id": "dishantar",
+        "type": "Paid",
+        "price_inr": 3000,
+        "access_duration": "Lifetime",
+        "activation": "14 Aug 2026",
+        "short_description": "Specialized course covering GATE GE Part B1 topics.",
+        "curriculum_topics": [
+            "Core Subject Topics (Part B1)",
+            "Concept explanation",
+            "Problem solving",
+            "Practice sessions"
+        ],
+        "total_videos": "50-80",
+        "notes": "Recorded lectures available"
+    },
+    {
+        "course_name": "PRATIBIMB",
+        "course_id": "pratibimb",
+        "type": "Paid",
+        "price_inr": 3000,
+        "access_duration": "Lifetime",
+        "activation": "14 Aug 2026",
+        "short_description": "Specialized course covering GATE GE Part B2 topics.",
+        "curriculum_topics": [
+            "Core Subject Topics (Part B2)",
+            "Concept explanation",
+            "Practice questions",
+            "Problem solving"
+        ],
+        "total_videos": "50-80",
+        "notes": "Recorded lectures available"
+    },
+    {
+        "course_name": "GATI (Crash Course)",
+        "course_id": "gati-crash-course",
+        "type": "Paid",
+        "price_inr": 4000,
+        "access_duration": "Lifetime",
+        "activation": "02 Oct 2026",
+        "short_description": "Complete crash course covering Part A, Part B1, and Part B2 for quick revision.",
+        "curriculum_topics": [
+            "Engineering Mathematics (Part A)",
+            "General Engineering",
+            "Core Topics (Part B1 & B2)",
+            "Revision and problem solving"
+        ],
+        "total_videos": "60-100",
+        "notes": "Crash course with recorded lectures"
+    }
+]

@@ -15,9 +15,18 @@ import numpy as np
 from sqlalchemy import Float
 from sqlalchemy import Boolean
 import uuid
+from fastapi.staticfiles import StaticFiles
+from datetime import datetime, timedelta
+from fastapi import Form
+from sqlalchemy import and_
+import smtplib
+from email.mime.text import MIMEText
+from dotenv import load_dotenv
+from twilio.rest import Client
 
 
 
+print("🔥 THIS OTP VERSION IS RUNNING")
 
 
 
@@ -46,7 +55,18 @@ def decrypt_data(enc_text):
         return None
 
 
+import random
 
+def generate_otp():
+    return str(random.randint(100000, 999999))
+
+
+load_dotenv()
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID")
+
+twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 # =========================================================
 # 1️⃣ FASTAPI APP SETUP
@@ -64,17 +84,29 @@ app.add_middleware(
 # =========================================================
 # 2️⃣ DATABASE SETUP (POSTGRES)
 # =========================================================
-DATABASE_URL = "postgresql://postgres@postgres.railway.internal:5432/railway"
+# DATABASE_URL = "postgresql://postgres@postgres.railway.internal:5432/railway"
+# DATABASE_URL = "postgresql://postgres@localhost:5432/CBT"
+# Try environment variable first (for production later)
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# If not found → use LOCAL PostgreSQL
+if not DATABASE_URL:
+    DATABASE_URL = "postgresql://postgres:sagarsahA%401@localhost:5432/CBT"
+
 print("Using DB URL:", DATABASE_URL)
 
-# engine = create_engine(DATABASE_URL)
+# Create engine
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True
 )
+
+# Session
 SessionLocal = sessionmaker(bind=engine)
+
+# Base model
 Base = declarative_base()
+
 
 # =========================================================
 # 3️⃣ MODELS
@@ -116,6 +148,17 @@ class Student(Base):
     created_at = Column(String, default=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
+class MobileVerification(Base):
+    __tablename__ = "mobile_verifications"
+    __table_args__ = {"schema": "cbt"}
+
+    id = Column(Integer, primary_key=True)
+    mobile = Column(String, unique=True)
+    otp_hash = Column(String)
+    is_verified = Column(Boolean, default=False)
+    expires_at = Column(String)
+
+
 class StudentAnswer(Base):
     __tablename__ = "student_answers"
     __table_args__ = {"schema": "cbt"}
@@ -139,6 +182,30 @@ class ExamAttempt(Base):
     # is_submitted = Column(Integer, default=0)
     is_submitted = Column(Boolean, default=False)   # 0 = running, 1 = submitted
     submitted_at = Column(String, nullable=True)
+
+class Course(Base):
+    __tablename__ = "courses"
+    __table_args__ = {"schema": "cbt"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    course_slug = Column(String, unique=True)   # sankalp-b1
+    name = Column(String)
+    type = Column(String)
+    price = Column(Integer)
+    access_duration = Column(String)
+    activation = Column(String)
+    short_description = Column(Text)
+    total_videos = Column(String)
+    notes = Column(Text) 
+
+class Purchase(Base):
+    __tablename__ = "purchases"
+    __table_args__ = {"schema": "cbt"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(String)
+    course_id = Column(Integer)
+    purchased_at = Column(String, default=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
 
@@ -300,27 +367,6 @@ def get_questions(exam_id: int):
 
     finally:
         db.close()
-
-
-# @app.get("/active-exam")
-# def get_active_exam():
-#     db = SessionLocal()
-#     try:
-#         exam = db.query(Question.exam_id)\
-#                  .filter(Question.status == "active")\
-#                  .distinct()\
-#                  .first()
-
-#         if not exam:
-#             return {"exam_id": None, "status": "no_active_exam"}
-
-#         return {"exam_id": exam[0], "status": "active"}
-
-#     except Exception as e:
-#         return {"error": str(e)}
-
-#     finally:
-#         db.close()
 
 @app.get("/active-exam")
 def get_active_exam():
@@ -540,97 +586,6 @@ def login_student(email: str = Form(...), password: str = Form(...)):
 # =========================================================
 # 🔟 STUDENT register
 # =========================================================
-# @app.post("/register-student")
-# def register_student(
-#     name: str = Form(...),
-#     email: str = Form(...),
-#     mobile: str = Form(...),
-#     password: str = Form(...),
-# ):
-#     db = SessionLocal()
-#     try:
-#         existing = db.query(Student).count()
-#         student_id = f"STD{100 + existing + 1}"
-
-#         # email already exists
-#         if db.query(Student).filter(Student.email == email).first():
-#             return {"error": "Email already registered!"}
-
-#         # password bcrypt hash
-#         final_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-#         # save plaintext email & mobile
-#         new_student = Student(
-#             student_id=student_id,
-#             name=name,
-#             email=email,
-#             mobile=mobile,
-#             password=final_hash,
-#         )
-
-#         db.add(new_student)
-#         db.commit()
-
-#         return {
-#             "status": "registered",
-#             "student_id": student_id,
-#         }
-
-#     except Exception as e:
-#         db.rollback()
-#         return {"error": str(e)}
-
-#     finally:
-#         db.close()
-
-
-# @app.post("/register-student")
-# def register_student(
-#     name: str = Form(...),
-#     email: str = Form(...),
-#     mobile: str = Form(...),
-#     password: str = Form(...),
-# ):
-#     db = SessionLocal()
-#     try:
-#         # ✅ Generate SAFE & UNIQUE student_id
-#         student_id = f"STD{uuid.uuid4().hex[:6].upper()}"
-
-#         # ❌ Email already exists check
-#         if db.query(Student).filter(Student.email == email).first():
-#             return {"error": "Email already registered!"}
-
-#         # 🔐 Password bcrypt hash
-#         final_hash = bcrypt.hashpw(
-#             password.encode("utf-8"),
-#             bcrypt.gensalt()
-#         ).decode("utf-8")
-
-#         # ✅ Create new student
-#         new_student = Student(
-#             student_id=student_id,
-#             name=name,
-#             email=email,
-#             mobile=mobile,
-#             password=final_hash,
-#         )
-
-#         db.add(new_student)
-#         db.commit()
-
-#         return {
-#             "status": "registered",
-#             "student_id": student_id,
-#         }
-
-#     except Exception as e:
-#         db.rollback()
-#         return {"error": str(e)}
-
-#     finally:
-#         db.close()
-
-
 @app.post("/register-student")
 def register_student(
     name: str = Form(...),
@@ -746,6 +701,147 @@ def submit_exam(exam_id: int = Form(...), student_id: str = Form(...)):
         db.commit()
 
         return {"status": "submitted"}
+
+    finally:
+        db.close()
+
+
+@app.post("/auth/send-otp")
+def send_otp(mobile: str = Form(...)):
+    db = SessionLocal()
+
+    try:
+        # Bangladesh number fix
+        if not mobile.startswith("+"):
+            if mobile.startswith("0"):
+                mobile = "+880" + mobile[1:]   # Bangladesh
+            else:
+                mobile = "+91" + mobile        # India
+
+        if db.query(Student).filter(Student.mobile == mobile).first():
+            return {"status": "error", "message": "Mobile already registered!"}
+
+        # 🔥 Twilio OTP send
+        twilio_client.verify.v2.services(
+            TWILIO_VERIFY_SERVICE_SID
+        ).verifications.create(
+            to=mobile,
+            channel="sms"
+        )
+
+        return {"status": "success", "message": "OTP sent"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+    finally:
+        db.close()
+
+@app.post("/auth/verify-mobile")
+def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
+    try:
+        if mobile.startswith("0"):
+            mobile = "+880" + mobile[1:]
+
+        result = twilio_client.verify.v2.services(
+            TWILIO_VERIFY_SERVICE_SID
+        ).verification_checks.create(
+            to=mobile,
+            code=otp
+        )
+
+        if result.status == "approved":
+            return {"status": "success", "message": "Verified"}
+        else:
+            return {"status": "error", "message": "Invalid OTP"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/my-courses")
+def my_courses(student_id: str = Form(...)):
+    db = SessionLocal()
+    try:
+        courses = (
+            db.query(Course)
+            .join(Purchase, Course.id == Purchase.course_id)
+            .filter(Purchase.student_id == student_id)
+            .all()
+        )
+
+        return {
+    "courses": [
+        {
+            "id": c.id,
+            "course_slug": c.course_slug,
+            "name": c.name,   # ✅ এটা use করো
+        }
+        for c in courses
+    ]
+}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+    finally:
+        db.close()
+
+
+@app.post("/buy-course")
+def buy_course(student_id: str = Form(...), course_slug: str = Form(...)):
+    db = SessionLocal()
+    try:
+        course = db.query(Course).filter(Course.course_slug == course_slug).first()
+        if not course:
+            return {"status": "error", "message": "Course not found"}
+
+        existing = db.query(Purchase).filter(
+            and_(Purchase.student_id == student_id, Purchase.course_id == course.id)
+        ).first()
+
+        if existing:
+            return {"status": "error", "message": "Already purchased"}
+
+        p = Purchase(student_id=student_id, course_id=course.id)
+        db.add(p)
+        db.commit()
+
+        return {"status": "success", "message": "Purchased successfully"}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
+
+
+@app.get("/course-details/{slug}")
+def course_details(slug: str):
+    db = SessionLocal()
+
+    try:
+        course = db.query(Course).filter(
+            Course.course_slug == slug
+        ).first()
+
+        if not course:
+            return {"error": "Course not found"}
+
+        # Demo videos (later DB table use করবে)
+        videos = [
+            {
+                "id": 1,
+                "title": "Introduction",
+                "video_url": "https://www.w3schools.com/html/mov_bbb.mp4"
+            },
+            {
+                "id": 2,
+                "title": "Chapter 1",
+                "video_url": "https://www.w3schools.com/html/movie.mp4"
+            }
+        ]
+
+        return {"videos": videos}
 
     finally:
         db.close()
