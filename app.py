@@ -38,7 +38,6 @@ SECRET_KEY = "Babi@2302"
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
@@ -86,6 +85,7 @@ TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID")
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 print("SID:", TWILIO_ACCOUNT_SID)
+print("TOKEN:", TWILIO_AUTH_TOKEN)
 print("SERVICE:", TWILIO_VERIFY_SERVICE_SID)
 
 # =========================================================
