@@ -27,7 +27,7 @@ import razorpay
 from fastapi import Request
 from dotenv import load_dotenv
 import os
-
+from twilio.base.exceptions import TwilioRestException
 
 
 print("🔥 THIS OTP VERSION IS RUNNING")
@@ -87,6 +87,9 @@ twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 print("SID:", TWILIO_ACCOUNT_SID)
 print("TOKEN:", TWILIO_AUTH_TOKEN)
 print("SERVICE:", TWILIO_VERIFY_SERVICE_SID)
+
+
+
 
 # =========================================================
 # 1️⃣ FASTAPI APP SETUP
@@ -736,33 +739,69 @@ def submit_exam(exam_id: int = Form(...), student_id: str = Form(...)):
         db.close()
 
 
+# @app.post("/auth/send-otp")
+# def send_otp(mobile: str = Form(...)):
+#     db = SessionLocal()
+
+#     try:
+#         # Bangladesh number fix
+#         if not mobile.startswith("+"):
+#             if mobile.startswith("0"):
+#                 mobile = "+880" + mobile[1:]   # Bangladesh
+#             else:
+#                 mobile = "+91" + mobile        # India
+
+#         if db.query(Student).filter(Student.mobile == mobile).first():
+#             return {"status": "error", "message": "Mobile already registered!"}
+
+#         # 🔥 Twilio OTP send
+#         twilio_client.verify.v2.services(
+#             TWILIO_VERIFY_SERVICE_SID
+#         ).verifications.create(
+#             to=mobile,
+#             channel="sms"
+#         )
+
+#         return {"status": "success", "message": "OTP sent"}
+
+#     except Exception as e:
+#         return {"status": "error", "message": str(e)}
+
+#     finally:
+#         db.close()
+
 @app.post("/auth/send-otp")
 def send_otp(mobile: str = Form(...)):
     db = SessionLocal()
 
     try:
-        # Bangladesh number fix
+        # Format mobile number
         if not mobile.startswith("+"):
             if mobile.startswith("0"):
-                mobile = "+880" + mobile[1:]   # Bangladesh
+                mobile = "+880" + mobile[1:]
             else:
-                mobile = "+91" + mobile        # India
+                mobile = "+91" + mobile
 
+        # Check already registered
         if db.query(Student).filter(Student.mobile == mobile).first():
             return {"status": "error", "message": "Mobile already registered!"}
 
-        # 🔥 Twilio OTP send
-        twilio_client.verify.v2.services(
-            TWILIO_VERIFY_SERVICE_SID
-        ).verifications.create(
-            to=mobile,
-            channel="sms"
-        )
+        # 🔥 DEBUG TWILIO
+        try:
+            verification = twilio_client.verify.v2.services(
+                TWILIO_VERIFY_SERVICE_SID
+            ).verifications.create(
+                to=mobile,
+                channel="sms"
+            )
+
+            print("✅ Twilio response:", verification.status)
+
+        except Exception as e:
+            print("❌ Twilio error:", e)
+            return {"status": "error", "message": str(e)}
 
         return {"status": "success", "message": "OTP sent"}
-
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
     finally:
         db.close()
