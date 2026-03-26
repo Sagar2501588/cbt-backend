@@ -38,7 +38,7 @@ SECRET_KEY = "Babi@2302"
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+# load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
