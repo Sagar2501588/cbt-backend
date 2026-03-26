@@ -9,4 +9,6 @@ pycryptodome
 python-multipart
 openpyxl
 python-dotenv
-
+twilio
+razorpay
+numpy

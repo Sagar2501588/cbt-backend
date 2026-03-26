@@ -23,6 +23,10 @@ import smtplib
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 from twilio.rest import Client
+import razorpay
+from fastapi import Request
+from dotenv import load_dotenv
+import os
 
 
 
@@ -31,6 +35,18 @@ print("🔥 THIS OTP VERSION IS RUNNING")
 
 
 SECRET_KEY = "Babi@2302"
+
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
+
+print("RAZORPAY ID:", RAZORPAY_KEY_ID)
+
+client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
 def decrypt_data(enc_text):
     try:
@@ -61,12 +77,16 @@ def generate_otp():
     return str(random.randint(100000, 999999))
 
 
-load_dotenv()
+
+
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID")
 
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+print("SID:", TWILIO_ACCOUNT_SID)
+print("SERVICE:", TWILIO_VERIFY_SERVICE_SID)
 
 # =========================================================
 # 1️⃣ FASTAPI APP SETUP
@@ -197,6 +217,16 @@ class Course(Base):
     short_description = Column(Text)
     total_videos = Column(String)
     notes = Column(Text) 
+
+class Video(Base):
+    __tablename__ = "videos"
+    __table_args__ = {"schema": "cbt"}
+
+    id = Column(Integer, primary_key=True)
+    course_id = Column(Integer)
+    title = Column(String)
+    video_url = Column(Text)
+    created_at = Column(String)
 
 class Purchase(Base):
     __tablename__ = "purchases"
@@ -828,26 +858,121 @@ def course_details(slug: str):
             return {"error": "Course not found"}
 
         # Demo videos (later DB table use করবে)
-        videos = [
-            {
-                "id": 1,
-                "title": "Introduction",
-                "video_url": "https://www.w3schools.com/html/mov_bbb.mp4"
-            },
-            {
-                "id": 2,
-                "title": "Chapter 1",
-                "video_url": "https://www.w3schools.com/html/movie.mp4"
-            }
-        ]
+        videos = db.query(Video).filter(
+            Video.course_id == course.id
+        ).all()
 
-        return {"videos": videos}
+        return {
+            "videos": [
+                {
+                    "id": v.id,
+                    "title": v.title,
+                    "video_url": v.video_url
+                }
+                for v in videos
+            ]
+        }
+
+        # return {"videos": videos}
+
+    finally:
+        db.close()
+
+@app.post("/cloudinary-webhook")
+async def cloudinary_webhook(data: dict):
+    db = SessionLocal()
+
+    try:
+        public_id = data.get("public_id")
+        secure_url = data.get("secure_url")
+
+        # example: courses/sankalp-b1/video1
+        parts = public_id.split("/")
+
+        course_slug = parts[1]
+
+        course = db.query(Course).filter(
+            Course.course_slug == course_slug
+        ).first()
+
+        if not course:
+            return {"error": "course not found"}
+
+        new_video = Video(
+            course_id=course.id,
+            title=parts[-1],
+            video_url=secure_url,
+            created_at=str(datetime.now())
+        )
+
+        db.add(new_video)
+        db.commit()
+
+        return {"status": "saved"}
+
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
 
     finally:
         db.close()
 
 
+@app.post("/create-order")
+def create_order(course_slug: str = Form(...)):
+    db = SessionLocal()
 
+    course = db.query(Course).filter(Course.course_slug == course_slug).first()
+    if not course:
+        return {"error": "Course not found"}
+
+    order = client.order.create({
+        "amount": course.price * 100,   # paisa
+        "currency": "INR",
+        "payment_capture": 1
+    })
+
+    return {
+        "order_id": order["id"],
+        "amount": course.price,
+        "key": RAZORPAY_KEY_ID
+    }
+
+
+@app.post("/verify-payment")
+async def verify_payment(
+    razorpay_order_id: str = Form(...),
+    razorpay_payment_id: str = Form(...),
+    razorpay_signature: str = Form(...),
+    student_id: str = Form(...),
+    course_slug: str = Form(...)
+):
+    try:
+        params_dict = {
+            "razorpay_order_id": razorpay_order_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_signature": razorpay_signature
+        }
+
+        client.utility.verify_payment_signature(params_dict)
+
+        # ✅ Payment success → save purchase
+        db = SessionLocal()
+
+        course = db.query(Course).filter(Course.course_slug == course_slug).first()
+
+        purchase = Purchase(
+            student_id=student_id,
+            course_id=course.id
+        )
+
+        db.add(purchase)
+        db.commit()
+
+        return {"status": "success"}
+
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
 
 # =========================================================
 # 11️⃣ ROOT CHECK
