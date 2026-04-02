@@ -28,6 +28,8 @@ from fastapi import Request
 from dotenv import load_dotenv
 import os
 from twilio.base.exceptions import TwilioRestException
+from dotenv import load_dotenv
+load_dotenv()
 
 
 print("🔥 THIS OTP VERSION IS RUNNING")
@@ -927,15 +929,17 @@ def course_details(slug: str):
         ).all()
 
         return {
+            "price": course.price,
+            "name": course.name,
             "videos": [
-                {
-                    "id": v.id,
-                    "title": v.title,
-                    "video_url": v.video_url
-                }
-                for v in videos
-            ]
-        }
+            {
+                "id": v.id,
+                "title": v.title,
+                "video_url": v.video_url
+            }
+            for v in videos
+        ]
+}
 
         # return {"videos": videos}
 
