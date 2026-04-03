@@ -808,27 +808,6 @@ def send_otp(mobile: str = Form(...)):
     finally:
         db.close()
 
-# @app.post("/auth/verify-mobile")
-# def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
-#     try:
-#         if mobile.startswith("0"):
-#             mobile = "+880" + mobile[1:]
-
-#         result = twilio_client.verify.v2.services(
-#             TWILIO_VERIFY_SERVICE_SID
-#         ).verification_checks.create(
-#             to=mobile,
-#             code=otp
-#         )
-
-#         if result.status == "approved":
-#             return {"status": "success", "message": "Verified"}
-#         else:
-#             return {"status": "error", "message": "Invalid OTP"}
-
-#     except Exception as e:
-#         return {"status": "error", "message": str(e)}
-
 @app.post("/auth/verify-mobile")
 def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
     try:
@@ -1002,9 +981,12 @@ def create_order(course_slug: str = Form(...)):
 
     return {
         "order_id": order["id"],
-        "amount": course.price,
+        "amount": order["amount"],
         "key": RAZORPAY_KEY_ID
     }
+
+print("KEY:", RAZORPAY_KEY_ID)
+print("SECRET:", RAZORPAY_KEY_SECRET)
 
 
 @app.post("/verify-payment")
