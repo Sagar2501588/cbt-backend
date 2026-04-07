@@ -384,12 +384,10 @@ def get_questions(exam_id: int):
                 "question_type": q.question_type,
                 "question_text": q.question_text,
                 "question_image_url": q.question_image_url,   # ✅ important for showing images
-
                 "option_a": q.option_a,
                 "option_b": q.option_b,
                 "option_c": q.option_c,
                 "option_d": q.option_d,
-
                 # "correct_option": q.correct_option,          # optional (MCQ)
                 # "correct_answer": q.correct_answer,          # optional (NAT/MSQ)
                 "status": q.status,
@@ -422,11 +420,6 @@ def get_active_exam():
         return {"error": str(e)}
     finally:
         db.close()
-
-
-
-
-
 
 # =========================================================
 # 7️⃣ SAVE STUDENT ANSWER
@@ -596,6 +589,26 @@ def calculate_marks(exam_id: int, student_id: str):
 # =========================================================
 # 9️⃣ STUDENT login
 # =========================================================
+# @app.post("/login-student")
+# def login_student(email: str = Form(...), password: str = Form(...)):
+#     db = SessionLocal()
+#     user = db.query(Student).filter(Student.email == email).first()
+#     db.close()
+
+#     if not user:
+#         return {"error": "Invalid credentials!"}
+
+#     if not bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
+#         return {"error": "Invalid credentials!"}
+
+#     return {
+#         "status": "success",
+#         "student_id": user.student_id,
+#         "name": user.name,
+#         "email": user.email,
+#     }
+
+
 @app.post("/login-student")
 def login_student(email: str = Form(...), password: str = Form(...)):
     db = SessionLocal()
@@ -605,7 +618,15 @@ def login_student(email: str = Form(...), password: str = Form(...)):
     if not user:
         return {"error": "Invalid credentials!"}
 
-    if not bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
+    import hashlib
+
+    if bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
+        pass
+
+    elif hashlib.sha256(password.encode()).hexdigest() == user.password:
+        pass
+
+    else:
         return {"error": "Invalid credentials!"}
 
     return {
@@ -614,7 +635,6 @@ def login_student(email: str = Form(...), password: str = Form(...)):
         "name": user.name,
         "email": user.email,
     }
-
 
 
 
@@ -746,28 +766,33 @@ def submit_exam(exam_id: int = Form(...), student_id: str = Form(...)):
 #     db = SessionLocal()
 
 #     try:
-#         # Bangladesh number fix
+#         # Format mobile number
 #         if not mobile.startswith("+"):
 #             if mobile.startswith("0"):
-#                 mobile = "+880" + mobile[1:]   # Bangladesh
+#                 mobile = "+880" + mobile[1:]
 #             else:
-#                 mobile = "+91" + mobile        # India
+#                 mobile = "+91" + mobile
 
+#         # Check already registered
 #         if db.query(Student).filter(Student.mobile == mobile).first():
 #             return {"status": "error", "message": "Mobile already registered!"}
 
-#         # 🔥 Twilio OTP send
-#         twilio_client.verify.v2.services(
-#             TWILIO_VERIFY_SERVICE_SID
-#         ).verifications.create(
-#             to=mobile,
-#             channel="sms"
-#         )
+#         # 🔥 DEBUG TWILIO
+#         try:
+#             verification = twilio_client.verify.v2.services(
+#                 TWILIO_VERIFY_SERVICE_SID
+#             ).verifications.create(
+#                 to=mobile,
+#                 channel="sms"
+#             )
+
+#             print("✅ Twilio response:", verification.status)
+
+#         except Exception as e:
+#             print("❌ Twilio error:", e)
+#             return {"status": "error", "message": str(e)}
 
 #         return {"status": "success", "message": "OTP sent"}
-
-#     except Exception as e:
-#         return {"status": "error", "message": str(e)}
 
 #     finally:
 #         db.close()
@@ -777,18 +802,26 @@ def send_otp(mobile: str = Form(...)):
     db = SessionLocal()
 
     try:
-        # Format mobile number
+        # ✅ Ensure mobile is in correct format
+        mobile = mobile.strip()
+
         if not mobile.startswith("+"):
-            if mobile.startswith("0"):
-                mobile = "+880" + mobile[1:]
-            else:
-                mobile = "+91" + mobile
+            return {
+                "status": "error",
+                "message": "Mobile number must include country code (e.g. +91XXXXXXXXXX)"
+            }
 
-        # Check already registered
-        if db.query(Student).filter(Student.mobile == mobile).first():
-            return {"status": "error", "message": "Mobile already registered!"}
+        print("📱 OTP REQUEST FOR:", mobile)
 
-        # 🔥 DEBUG TWILIO
+        # ✅ Check already registered
+        existing = db.query(Student).filter(Student.mobile == mobile).first()
+        if existing:
+            return {
+                "status": "error",
+                "message": "Mobile already registered!"
+            }
+
+        # ✅ Send OTP via Twilio
         try:
             verification = twilio_client.verify.v2.services(
                 TWILIO_VERIFY_SERVICE_SID
@@ -801,23 +834,67 @@ def send_otp(mobile: str = Form(...)):
 
         except Exception as e:
             print("❌ Twilio error:", e)
-            return {"status": "error", "message": str(e)}
+            return {
+                "status": "error",
+                "message": "OTP sending failed. Try again later."
+            }
 
-        return {"status": "success", "message": "OTP sent"}
+        return {
+            "status": "success",
+            "message": "OTP sent successfully"
+        }
+
+    except Exception as e:
+        print("❌ SERVER ERROR:", e)
+        return {
+            "status": "error",
+            "message": "Internal server error"
+        }
 
     finally:
         db.close()
 
+# @app.post("/auth/verify-mobile")
+# def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
+#     try:
+#         # ✅ FIX: same formatting as send_otp
+#         if not mobile.startswith("+"):
+#             if mobile.startswith("0"):
+#                 mobile = "+880" + mobile[1:]
+#             else:
+#                 mobile = "+91" + mobile
+
+#         result = twilio_client.verify.v2.services(
+#             TWILIO_VERIFY_SERVICE_SID
+#         ).verification_checks.create(
+#             to=mobile,
+#             code=otp
+#         )
+
+#         if result.status == "approved":
+#             return {"status": "success", "message": "Verified"}
+#         else:
+#             return {"status": "error", "message": "Invalid OTP"}
+
+#     except Exception as e:
+#         return {"status": "error", "message": str(e)}
+
+
 @app.post("/auth/verify-mobile")
 def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
     try:
-        # ✅ FIX: same formatting as send_otp
-        if not mobile.startswith("+"):
-            if mobile.startswith("0"):
-                mobile = "+880" + mobile[1:]
-            else:
-                mobile = "+91" + mobile
+        # ✅ Keep same format as send_otp (NO modification)
+        mobile = mobile.strip()
 
+        if not mobile.startswith("+"):
+            return {
+                "status": "error",
+                "message": "Invalid mobile format. Use +91XXXXXXXXXX"
+            }
+
+        print("🔐 VERIFY OTP FOR:", mobile)
+
+        # ✅ Verify OTP via Twilio
         result = twilio_client.verify.v2.services(
             TWILIO_VERIFY_SERVICE_SID
         ).verification_checks.create(
@@ -825,13 +902,25 @@ def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
             code=otp
         )
 
+        print("📩 Twilio verify status:", result.status)
+
         if result.status == "approved":
-            return {"status": "success", "message": "Verified"}
+            return {
+                "status": "success",
+                "message": "Mobile verified successfully"
+            }
         else:
-            return {"status": "error", "message": "Invalid OTP"}
+            return {
+                "status": "error",
+                "message": "Invalid OTP"
+            }
 
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        print("❌ VERIFY ERROR:", e)
+        return {
+            "status": "error",
+            "message": "OTP verification failed"
+        }
 
 
 @app.post("/my-courses")
