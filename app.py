@@ -923,30 +923,67 @@ def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
         }
 
 
+# @app.post("/my-courses")
+# def my_courses(student_id: str = Form(...)):
+#     db = SessionLocal()
+#     try:
+#         courses = (
+#             db.query(Course)
+#             .join(Purchase, Course.id == Purchase.course_id)
+#             .filter(Purchase.student_id == student_id)
+#             .all()
+#         )
+
+#         return {
+#     "courses": [
+#         {
+#             "id": c.id,
+#             "course_slug": c.course_slug,
+#             "name": c.name,   # ✅ এটা use করো
+#         }
+#         for c in courses
+#     ]
+# }
+
+#     except Exception as e:
+#         return {"error": str(e)}
+
+#     finally:
+#         db.close()
+
 @app.post("/my-courses")
 def my_courses(student_id: str = Form(...)):
     db = SessionLocal()
+
     try:
-        courses = (
-            db.query(Course)
-            .join(Purchase, Course.id == Purchase.course_id)
-            .filter(Purchase.student_id == student_id)
-            .all()
-        )
+        purchases = db.query(Purchase).filter(
+            Purchase.student_id == student_id
+        ).all()
 
-        return {
-    "courses": [
-        {
-            "id": c.id,
-            "course_slug": c.course_slug,
-            "name": c.name,   # ✅ এটা use করো
-        }
-        for c in courses
-    ]
-}
+        result = []
 
-    except Exception as e:
-        return {"error": str(e)}
+        for p in purchases:
+            course = db.query(Course).filter(
+                Course.id == p.course_id
+            ).first()
+
+            videos = db.query(Video).filter(
+                Video.course_id == course.id
+            ).all()
+
+            result.append({
+                "id": course.id,
+                "course_slug": course.course_slug,
+                "name": course.name,
+                "videos": [
+                    {
+                        "video_url": v.video_url,
+                        "title": v.title
+                    } for v in videos
+                ]
+            })
+
+        return {"courses": result}
 
     finally:
         db.close()
