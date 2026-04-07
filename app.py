@@ -1016,11 +1016,13 @@ def course_details(slug: str):
 
 @app.post("/cloudinary-webhook")
 async def cloudinary_webhook(data: dict):
+    print("🔥 FULL DATA:", data)
     db = SessionLocal()
 
     try:
         public_id = data.get("public_id")
         secure_url = data.get("secure_url")
+        
 
         # example: courses/sankalp-b1/video1
         parts = public_id.split("/")
@@ -1052,6 +1054,9 @@ async def cloudinary_webhook(data: dict):
 
     finally:
         db.close()
+
+        print("📦 PUBLIC ID:", public_id)
+        print("🌐 URL:", secure_url)
 
 
 @app.post("/create-order")
