@@ -760,43 +760,6 @@ def submit_exam(exam_id: int = Form(...), student_id: str = Form(...)):
     finally:
         db.close()
 
-
-# @app.post("/auth/send-otp")
-# def send_otp(mobile: str = Form(...)):
-#     db = SessionLocal()
-
-#     try:
-#         # Format mobile number
-#         if not mobile.startswith("+"):
-#             if mobile.startswith("0"):
-#                 mobile = "+880" + mobile[1:]
-#             else:
-#                 mobile = "+91" + mobile
-
-#         # Check already registered
-#         if db.query(Student).filter(Student.mobile == mobile).first():
-#             return {"status": "error", "message": "Mobile already registered!"}
-
-#         # 🔥 DEBUG TWILIO
-#         try:
-#             verification = twilio_client.verify.v2.services(
-#                 TWILIO_VERIFY_SERVICE_SID
-#             ).verifications.create(
-#                 to=mobile,
-#                 channel="sms"
-#             )
-
-#             print("✅ Twilio response:", verification.status)
-
-#         except Exception as e:
-#             print("❌ Twilio error:", e)
-#             return {"status": "error", "message": str(e)}
-
-#         return {"status": "success", "message": "OTP sent"}
-
-#     finally:
-#         db.close()
-
 @app.post("/auth/send-otp")
 def send_otp(mobile: str = Form(...)):
     db = SessionLocal()
@@ -854,32 +817,6 @@ def send_otp(mobile: str = Form(...)):
     finally:
         db.close()
 
-# @app.post("/auth/verify-mobile")
-# def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
-#     try:
-#         # ✅ FIX: same formatting as send_otp
-#         if not mobile.startswith("+"):
-#             if mobile.startswith("0"):
-#                 mobile = "+880" + mobile[1:]
-#             else:
-#                 mobile = "+91" + mobile
-
-#         result = twilio_client.verify.v2.services(
-#             TWILIO_VERIFY_SERVICE_SID
-#         ).verification_checks.create(
-#             to=mobile,
-#             code=otp
-#         )
-
-#         if result.status == "approved":
-#             return {"status": "success", "message": "Verified"}
-#         else:
-#             return {"status": "error", "message": "Invalid OTP"}
-
-#     except Exception as e:
-#         return {"status": "error", "message": str(e)}
-
-
 @app.post("/auth/verify-mobile")
 def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
     try:
@@ -922,34 +859,6 @@ def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
             "message": "OTP verification failed"
         }
 
-
-# @app.post("/my-courses")
-# def my_courses(student_id: str = Form(...)):
-#     db = SessionLocal()
-#     try:
-#         courses = (
-#             db.query(Course)
-#             .join(Purchase, Course.id == Purchase.course_id)
-#             .filter(Purchase.student_id == student_id)
-#             .all()
-#         )
-
-#         return {
-#     "courses": [
-#         {
-#             "id": c.id,
-#             "course_slug": c.course_slug,
-#             "name": c.name,   # ✅ এটা use করো
-#         }
-#         for c in courses
-#     ]
-# }
-
-#     except Exception as e:
-#         return {"error": str(e)}
-
-#     finally:
-#         db.close()
 
 @app.post("/my-courses")
 def my_courses(student_id: str = Form(...)):
