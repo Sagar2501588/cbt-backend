@@ -1140,27 +1140,33 @@ async def verify_payment(
     
 
 @app.post("/forgot-password")
-def forgot_password(email: str = Form(...), mobile: str = Form(...)):
+def forgot_password(mobile: str = Form(...)):
     db = SessionLocal()
 
+    mobile = mobile.strip()
+
+    if not mobile.startswith("+"):
+        return {"message": "Use +91XXXXXXXXXX format"}
+
     user = db.query(Student).filter(
-        Student.email == email,
         Student.mobile == mobile
     ).first()
 
     if not user:
-        return {"message": "Email or mobile not matched"}
+        return {"message": "Mobile not registered"}
 
-    otp = str(random.randint(100000, 999999))
+    # 🔥 Twilio OTP send
+    try:
+        twilio_client.verify.v2.services(
+            TWILIO_VERIFY_SERVICE_SID
+        ).verifications.create(
+            to=mobile,
+            channel="sms"
+        )
+    except Exception as e:
+        return {"message": "OTP send failed"}
 
-    user.otp = otp
-    user.otp_expiry = datetime.now() + timedelta(minutes=5)
-
-    db.commit()
-
-    print("OTP:", otp)
-
-    return {"message": "OTP sent successfully"}
+    return {"message": "OTP sent to mobile"}
 
 @app.post("/verify-otp")
 def verify_otp(email: str = Form(...), otp: str = Form(...)):
@@ -1177,21 +1183,23 @@ def verify_otp(email: str = Form(...), otp: str = Form(...)):
     return {"message": "OTP verified"}
 
 @app.post("/reset-password")
-def reset_password(email: str = Form(...), password: str = Form(...)):
+def reset_password(mobile: str = Form(...), password: str = Form(...)):
     db = SessionLocal()
 
-    user = db.query(Student).filter(Student.email == email).first()
+    user = db.query(Student).filter(Student.mobile == mobile).first()
 
     if not user:
         return {"message": "User not found"}
 
-    hashed_password = hash_password(password)
-    user.password = hashed_password
+    hashed_password = bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt()
+    ).decode("utf-8")
 
-    user.otp = None  # clear OTP
+    user.password = hashed_password
     db.commit()
 
-    return {"message": "Password updated successfully"}
+    return {"message": "Password updated"}
 
 # =========================================================
 # 11️⃣ ROOT CHECK
