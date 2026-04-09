@@ -30,6 +30,8 @@ import os
 from twilio.base.exceptions import TwilioRestException
 from dotenv import load_dotenv
 load_dotenv()
+import random
+from datetime import datetime, timedelta
 
 
 print("🔥 THIS OTP VERSION IS RUNNING")
@@ -96,11 +98,25 @@ print("SERVICE:", TWILIO_VERIFY_SERVICE_SID)
 # =========================================================
 # 1️⃣ FASTAPI APP SETUP
 # =========================================================
+# app = FastAPI()
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],  
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all frontend origins
+    allow_origins=[
+        "https://www.geomaticsgalaxy.com",
+        "https://geomaticsgalaxy.com",
+        "http://localhost:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -171,6 +187,8 @@ class Student(Base):
     mobile = Column(String)
     password = Column(String)
     reset_token = Column(String, nullable=True)   # ✅ ADD THIS
+    otp = Column(String, nullable=True)
+    otp_expiry = Column(String, nullable=True)
     created_at = Column(String, default=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
@@ -1122,41 +1140,55 @@ async def verify_payment(
     
 
 @app.post("/forgot-password")
-def forgot_password(email: str = Form(...)):
+def forgot_password(email: str = Form(...), mobile: str = Form(...)):
+    db = SessionLocal()
+
+    user = db.query(Student).filter(
+        Student.email == email,
+        Student.mobile == mobile
+    ).first()
+
+    if not user:
+        return {"message": "Email or mobile not matched"}
+
+    otp = str(random.randint(100000, 999999))
+
+    user.otp = otp
+    user.otp_expiry = datetime.now() + timedelta(minutes=5)
+
+    db.commit()
+
+    print("OTP:", otp)
+
+    return {"message": "OTP sent successfully"}
+
+@app.post("/verify-otp")
+def verify_otp(email: str = Form(...), otp: str = Form(...)):
+    db = SessionLocal()
+
+    user = db.query(Student).filter(Student.email == email).first()
+
+    if not user or user.otp != otp:
+        return {"message": "Invalid OTP"}
+
+    if datetime.now() > user.otp_expiry:
+        return {"message": "OTP expired"}
+
+    return {"message": "OTP verified"}
+
+@app.post("/reset-password")
+def reset_password(email: str = Form(...), password: str = Form(...)):
     db = SessionLocal()
 
     user = db.query(Student).filter(Student.email == email).first()
 
     if not user:
-        return {"message": "Email not found"}
+        return {"message": "User not found"}
 
-    token = str(uuid.uuid4())
-    user.reset_token = token
-    db.commit()
+    hashed_password = hash_password(password)
+    user.password = hashed_password
 
-    reset_link = f"https://www.geomaticsgalaxy.com/reset-password/{token}"
-
-    return {
-        "message": "Reset link generated",
-        "reset_link": reset_link
-    }
-
-@app.post("/reset-password")
-def reset_password(token: str = Form(...), password: str = Form(...)):
-    db = SessionLocal()
-
-    user = db.query(Student).filter(Student.reset_token == token).first()
-
-    if not user:
-        return {"message": "Invalid token"}
-
-    import bcrypt
-
-    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-
-    user.password = hashed
-    user.reset_token = None
-
+    user.otp = None  # clear OTP
     db.commit()
 
     return {"message": "Password updated successfully"}
