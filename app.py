@@ -816,6 +816,7 @@ def send_otp(mobile: str = Form(...)):
 
         except Exception as e:
             print("❌ Twilio error:", e)
+            return {"message": str(e)}
             return {
                 "status": "error",
                 "message": "OTP sending failed. Try again later."
@@ -1143,30 +1144,50 @@ async def verify_payment(
 def forgot_password(mobile: str = Form(...)):
     db = SessionLocal()
 
-    mobile = mobile.strip()
-
-    if not mobile.startswith("+"):
-        return {"message": "Use +91XXXXXXXXXX format"}
-
-    user = db.query(Student).filter(
-        Student.mobile == mobile
-    ).first()
-
-    if not user:
-        return {"message": "Mobile not registered"}
-
-    # 🔥 Twilio OTP send
     try:
-        twilio_client.verify.v2.services(
-            TWILIO_VERIFY_SERVICE_SID
-        ).verifications.create(
-            to=mobile,
-            channel="sms"
-        )
-    except Exception as e:
-        return {"message": "OTP send failed"}
+        raw_mobile = mobile.strip()
 
-    return {"message": "OTP sent to mobile"}
+        # ✅ +91 format বানাও (Twilio এর জন্য)
+        formatted_mobile = raw_mobile if raw_mobile.startswith("+") else "+91" + raw_mobile
+
+        # ✅ DB match করার জন্য plain version
+        plain_mobile = formatted_mobile.replace("+91", "", 1)
+
+        print("📱 RAW:", raw_mobile)
+        print("📱 FORMATTED:", formatted_mobile)
+        print("📱 PLAIN:", plain_mobile)
+
+        # ✅ BOTH format check
+        user = db.query(Student).filter(
+            (Student.mobile == formatted_mobile) | (Student.mobile == plain_mobile)
+        ).first()
+
+        if not user:
+            return {"message": "Mobile not registered"}
+
+        # 🔥 Twilio OTP send (always +91 format)
+        try:
+            verification = twilio_client.verify.v2.services(
+                TWILIO_VERIFY_SERVICE_SID
+            ).verifications.create(
+                to=formatted_mobile,
+                channel="sms"
+            )
+
+            print("✅ Twilio status:", verification.status)
+
+        except Exception as e:
+            print("❌ TWILIO ERROR:", str(e))
+            return {"message": str(e)}
+
+        return {"message": "OTP sent to mobile"}
+
+    except Exception as e:
+        print("❌ SERVER ERROR:", str(e))
+        return {"message": "Internal server error"}
+
+    finally:
+        db.close()
 
 @app.post("/verify-otp")
 def verify_otp(email: str = Form(...), otp: str = Form(...)):
