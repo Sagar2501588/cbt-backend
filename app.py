@@ -170,6 +170,7 @@ class Student(Base):
     email = Column(String, unique=True)
     mobile = Column(String)
     password = Column(String)
+    reset_token = Column(String, nullable=True)   # ✅ ADD THIS
     created_at = Column(String, default=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
@@ -1118,6 +1119,47 @@ async def verify_payment(
 
     except Exception as e:
         return {"status": "failed", "error": str(e)}
+    
+
+@app.post("/forgot-password")
+def forgot_password(email: str = Form(...)):
+    db = SessionLocal()
+
+    user = db.query(Student).filter(Student.email == email).first()
+
+    if not user:
+        return {"message": "Email not found"}
+
+    token = str(uuid.uuid4())
+    user.reset_token = token
+    db.commit()
+
+    reset_link = f"https://www.geomaticsgalaxy.com/reset-password/{token}"
+
+    return {
+        "message": "Reset link generated",
+        "reset_link": reset_link
+    }
+
+@app.post("/reset-password")
+def reset_password(token: str = Form(...), password: str = Form(...)):
+    db = SessionLocal()
+
+    user = db.query(Student).filter(Student.reset_token == token).first()
+
+    if not user:
+        return {"message": "Invalid token"}
+
+    import bcrypt
+
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+    user.password = hashed
+    user.reset_token = None
+
+    db.commit()
+
+    return {"message": "Password updated successfully"}
 
 # =========================================================
 # 11️⃣ ROOT CHECK
