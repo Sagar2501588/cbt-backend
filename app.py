@@ -1095,13 +1095,15 @@ def my_courses(student_id: str = Form(...)):
             })
 
         # =========================
-        # 🔥 2️⃣ ALWAYS ADD FREE COURSE
+        # 🔥 2️⃣ FREE COURSE (FIXED)
         # =========================
         free_course = db.query(Course).filter(
             Course.course_slug == "free-content"
         ).first()
 
-        if free_course:
+        # 👉 IMPORTANT FIX HERE
+        if free_course and free_course.id not in purchased_course_ids:
+
             videos = db.query(Video).filter(
                 Video.course_id == free_course.id
             ).all()
