@@ -1,5 +1,22 @@
 [
     {
+        "course_name": "FREE CONTENT",
+        "course_id": "free-content",
+        "type": "Free",
+        "price_inr": 0,
+        "access_duration": "Lifetime",
+        "activation": "14 Apr 2026",
+        "short_description": "Free recorded classes, demo lectures, and introductory content for GATE GE preparation.",
+        "curriculum_topics": [
+            "Demo Classes",
+            "Introductory Lectures",
+            "Free Practice Sessions",
+            "Selected Concept Videos"
+        ],
+        "total_videos": "10-30",
+        "notes": "Free videos available"
+    },
+    {
         "course_name": "SANKALP (Part B1)",
         "course_id": "sankalp-b1",
         "type": "Paid",

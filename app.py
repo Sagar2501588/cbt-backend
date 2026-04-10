@@ -603,26 +603,6 @@ def calculate_marks(exam_id: int, student_id: str):
 # =========================================================
 # 9️⃣ STUDENT login
 # =========================================================
-# @app.post("/login-student")
-# def login_student(email: str = Form(...), password: str = Form(...)):
-#     db = SessionLocal()
-#     user = db.query(Student).filter(Student.email == email).first()
-#     db.close()
-
-#     if not user:
-#         return {"error": "Invalid credentials!"}
-
-#     if not bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
-#         return {"error": "Invalid credentials!"}
-
-#     return {
-#         "status": "success",
-#         "student_id": user.student_id,
-#         "name": user.name,
-#         "email": user.email,
-#     }
-
-
 @app.post("/login-student")
 def login_student(email: str = Form(...), password: str = Form(...)):
     db = SessionLocal()
@@ -975,50 +955,6 @@ def course_details(slug: str):
     finally:
         db.close()
 
-# @app.post("/cloudinary-webhook")
-# async def cloudinary_webhook(data: dict):
-#     print("🔥 FULL DATA:", data)
-#     db = SessionLocal()
-
-#     try:
-#         public_id = data.get("public_id")
-#         secure_url = data.get("secure_url")
-        
-
-#         # example: courses/sankalp-b1/video1
-#         parts = public_id.split("/")
-
-#         course_slug = parts[1]
-
-#         course = db.query(Course).filter(
-#             Course.course_slug == course_slug
-#         ).first()
-
-#         if not course:
-#             return {"error": "course not found"}
-
-#         new_video = Video(
-#             course_id=course.id,
-#             title=parts[-1],
-#             video_url=secure_url,
-#             created_at=str(datetime.now())
-#         )
-
-#         db.add(new_video)
-#         db.commit()
-
-#         return {"status": "saved"}
-
-#     except Exception as e:
-#         db.rollback()
-#         return {"error": str(e)}
-
-#     finally:
-#         db.close()
-
-#         print("📦 PUBLIC ID:", public_id)
-#         print("🌐 URL:", secure_url)
-
 @app.post("/cloudinary-webhook")
 async def cloudinary_webhook(data: dict):
     print("🔥 FULL DATA:", data)
@@ -1135,55 +1071,6 @@ async def verify_payment(
         return {"status": "failed", "error": str(e)}
     
 
-# @app.post("/forgot-password")
-# def forgot_password(mobile: str = Form(...)):
-#     db = SessionLocal()
-
-#     try:
-#         raw_mobile = mobile.strip()
-
-#         # ✅ +91 format বানাও (Twilio এর জন্য)
-#         formatted_mobile = raw_mobile if raw_mobile.startswith("+") else "+91" + raw_mobile
-
-#         # ✅ DB match করার জন্য plain version
-#         plain_mobile = formatted_mobile.replace("+91", "", 1)
-
-#         print("📱 RAW:", raw_mobile)
-#         print("📱 FORMATTED:", formatted_mobile)
-#         print("📱 PLAIN:", plain_mobile)
-
-#         # ✅ BOTH format check
-#         user = db.query(Student).filter(
-#             (Student.mobile == formatted_mobile) | (Student.mobile == plain_mobile)
-#         ).first()
-
-#         if not user:
-#             return {"message": "Mobile not registered"}
-
-#         # 🔥 Twilio OTP send (always +91 format)
-#         try:
-#             verification = twilio_client.verify.v2.services(
-#                 TWILIO_VERIFY_SERVICE_SID
-#             ).verifications.create(
-#                 to=formatted_mobile,
-#                 channel="sms"
-#             )
-
-#             print("✅ Twilio status:", verification.status)
-
-#         except Exception as e:
-#             print("❌ TWILIO ERROR:", str(e))
-#             return {"message": str(e)}
-
-#         return {"message": "OTP sent to mobile"}
-
-#     except Exception as e:
-#         print("❌ SERVER ERROR:", str(e))
-#         return {"message": "Internal server error"}
-
-#     finally:
-#         db.close()
-
 from sqlalchemy import func
 
 @app.post("/forgot-password")
@@ -1257,39 +1144,6 @@ def verify_otp(email: str = Form(...), otp: str = Form(...)):
         return {"message": "OTP expired"}
 
     return {"message": "OTP verified"}
-
-# @app.post("/reset-password")
-# def reset_password(mobile: str = Form(...), password: str = Form(...)):
-#     db = SessionLocal()
-
-#     try:
-#         formatted_mobile = mobile if mobile.startswith("+") else "+91" + mobile
-#         plain_mobile = formatted_mobile.replace("+91", "", 1)
-
-#         user = db.query(Student).filter(
-#             (Student.mobile == formatted_mobile) | (Student.mobile == plain_mobile)
-#         ).first()
-
-#         if not user:
-#             return {"message": "User not found"}
-
-#         import bcrypt
-#         hashed_password = bcrypt.hashpw(
-#             password.encode("utf-8"),
-#             bcrypt.gensalt()
-#         ).decode("utf-8")
-
-#         user.password = hashed_password
-#         db.commit()
-
-#         return {"message": "Password updated successfully"}
-
-#     except Exception as e:
-#         return {"message": str(e)}
-
-#     finally:
-#         db.close()
-
 
 
 from sqlalchemy import func
