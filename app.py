@@ -33,11 +33,6 @@ load_dotenv()
 import random
 from datetime import datetime, timedelta
 
-
-print("🔥 THIS OTP VERSION IS RUNNING")
-
-
-
 SECRET_KEY = "Babi@2302"
 
 
@@ -1140,32 +1135,90 @@ async def verify_payment(
         return {"status": "failed", "error": str(e)}
     
 
+# @app.post("/forgot-password")
+# def forgot_password(mobile: str = Form(...)):
+#     db = SessionLocal()
+
+#     try:
+#         raw_mobile = mobile.strip()
+
+#         # ✅ +91 format বানাও (Twilio এর জন্য)
+#         formatted_mobile = raw_mobile if raw_mobile.startswith("+") else "+91" + raw_mobile
+
+#         # ✅ DB match করার জন্য plain version
+#         plain_mobile = formatted_mobile.replace("+91", "", 1)
+
+#         print("📱 RAW:", raw_mobile)
+#         print("📱 FORMATTED:", formatted_mobile)
+#         print("📱 PLAIN:", plain_mobile)
+
+#         # ✅ BOTH format check
+#         user = db.query(Student).filter(
+#             (Student.mobile == formatted_mobile) | (Student.mobile == plain_mobile)
+#         ).first()
+
+#         if not user:
+#             return {"message": "Mobile not registered"}
+
+#         # 🔥 Twilio OTP send (always +91 format)
+#         try:
+#             verification = twilio_client.verify.v2.services(
+#                 TWILIO_VERIFY_SERVICE_SID
+#             ).verifications.create(
+#                 to=formatted_mobile,
+#                 channel="sms"
+#             )
+
+#             print("✅ Twilio status:", verification.status)
+
+#         except Exception as e:
+#             print("❌ TWILIO ERROR:", str(e))
+#             return {"message": str(e)}
+
+#         return {"message": "OTP sent to mobile"}
+
+#     except Exception as e:
+#         print("❌ SERVER ERROR:", str(e))
+#         return {"message": "Internal server error"}
+
+#     finally:
+#         db.close()
+
+from sqlalchemy import func
+
 @app.post("/forgot-password")
 def forgot_password(mobile: str = Form(...)):
     db = SessionLocal()
 
     try:
+        # 🔹 normalize
+        def normalize_mobile(m):
+            return m.replace("+91", "").strip()
+
         raw_mobile = mobile.strip()
+        plain_mobile = normalize_mobile(raw_mobile)
 
-        # ✅ +91 format বানাও (Twilio এর জন্য)
+        # ✅ Twilio এর জন্য +91 format
         formatted_mobile = raw_mobile if raw_mobile.startswith("+") else "+91" + raw_mobile
-
-        # ✅ DB match করার জন্য plain version
-        plain_mobile = formatted_mobile.replace("+91", "", 1)
 
         print("📱 RAW:", raw_mobile)
         print("📱 FORMATTED:", formatted_mobile)
-        print("📱 PLAIN:", plain_mobile)
+        print("📱 NORMALIZED:", plain_mobile)
 
-        # ✅ BOTH format check
+        # ✅ FINAL FIX (SAME AS RESET PASSWORD)
+        # user = db.query(Student).filter(
+        #     func.replace(func.trim(Student.mobile), "+91", "") == plain_mobile
+        # ).first()
+
         user = db.query(Student).filter(
-            (Student.mobile == formatted_mobile) | (Student.mobile == plain_mobile)
+        func.right(func.trim(Student.mobile), 10) == plain_mobile
         ).first()
 
         if not user:
+            print("❌ MOBILE NOT FOUND IN DB")
             return {"message": "Mobile not registered"}
 
-        # 🔥 Twilio OTP send (always +91 format)
+        # 🔥 Send OTP via Twilio
         try:
             verification = twilio_client.verify.v2.services(
                 TWILIO_VERIFY_SERVICE_SID
@@ -1189,6 +1242,8 @@ def forgot_password(mobile: str = Form(...)):
     finally:
         db.close()
 
+
+
 @app.post("/verify-otp")
 def verify_otp(email: str = Form(...), otp: str = Form(...)):
     db = SessionLocal()
@@ -1203,24 +1258,89 @@ def verify_otp(email: str = Form(...), otp: str = Form(...)):
 
     return {"message": "OTP verified"}
 
+# @app.post("/reset-password")
+# def reset_password(mobile: str = Form(...), password: str = Form(...)):
+#     db = SessionLocal()
+
+#     try:
+#         formatted_mobile = mobile if mobile.startswith("+") else "+91" + mobile
+#         plain_mobile = formatted_mobile.replace("+91", "", 1)
+
+#         user = db.query(Student).filter(
+#             (Student.mobile == formatted_mobile) | (Student.mobile == plain_mobile)
+#         ).first()
+
+#         if not user:
+#             return {"message": "User not found"}
+
+#         import bcrypt
+#         hashed_password = bcrypt.hashpw(
+#             password.encode("utf-8"),
+#             bcrypt.gensalt()
+#         ).decode("utf-8")
+
+#         user.password = hashed_password
+#         db.commit()
+
+#         return {"message": "Password updated successfully"}
+
+#     except Exception as e:
+#         return {"message": str(e)}
+
+#     finally:
+#         db.close()
+
+
+
+from sqlalchemy import func
+
 @app.post("/reset-password")
 def reset_password(mobile: str = Form(...), password: str = Form(...)):
     db = SessionLocal()
 
-    user = db.query(Student).filter(Student.mobile == mobile).first()
+    try:
+        # 🔹 normalize
+        def normalize_mobile(m):
+            return m.replace("+91", "").strip()
 
-    if not user:
-        return {"message": "User not found"}
+        raw_mobile = mobile.strip()
+        plain_mobile = normalize_mobile(raw_mobile)
 
-    hashed_password = bcrypt.hashpw(
-        password.encode("utf-8"),
-        bcrypt.gensalt()
-    ).decode("utf-8")
+        print("📱 RAW:", raw_mobile)
+        print("📱 NORMALIZED:", plain_mobile)
 
-    user.password = hashed_password
-    db.commit()
+        # ✅ FINAL FIX (STRICT CLEAN MATCH)
+        # user = db.query(Student).filter(
+        #     func.replace(func.trim(Student.mobile), "+91", "") == plain_mobile
+        # ).first()
+        user = db.query(Student).filter(
+    func.right(func.trim(Student.mobile), 10) == plain_mobile
+).first()
 
-    return {"message": "Password updated"}
+        if not user:
+            print("❌ NO USER FOUND IN DB")
+            return {"message": "User not found"}
+
+        # 🔐 hash password
+        import bcrypt
+        hashed_password = bcrypt.hashpw(
+            password.encode("utf-8"),
+            bcrypt.gensalt()
+        ).decode("utf-8")
+
+        user.password = hashed_password
+        db.commit()
+
+        print("✅ PASSWORD UPDATED FOR:", user.mobile)
+
+        return {"message": "Password updated successfully"}
+
+    except Exception as e:
+        print("❌ RESET ERROR:", str(e))
+        return {"message": str(e)}
+
+    finally:
+        db.close()
 
 # =========================================================
 # 11️⃣ ROOT CHECK
