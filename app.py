@@ -603,34 +603,6 @@ def calculate_marks(exam_id: int, student_id: str):
 # =========================================================
 # 9️⃣ STUDENT login
 # =========================================================
-# @app.post("/login-student")
-# def login_student(email: str = Form(...), password: str = Form(...)):
-#     db = SessionLocal()
-#     user = db.query(Student).filter(Student.email == email).first()
-#     db.close()
-
-#     if not user:
-#         return {"error": "Invalid credentials!"}
-
-#     import hashlib
-
-#     if bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
-#         pass
-
-#     elif hashlib.sha256(password.encode()).hexdigest() == user.password:
-#         pass
-
-#     else:
-#         return {"error": "Invalid credentials!"}
-
-#     return {
-#         "status": "success",
-#         "student_id": user.student_id,
-#         "name": user.name,
-#         "email": user.email,
-#     }
-
-
 @app.post("/login-student")
 def login_student(email: str = Form(...), password: str = Form(...)):
     db = SessionLocal()
@@ -678,60 +650,6 @@ def login_student(email: str = Form(...), password: str = Form(...)):
 # =========================================================
 # 🔟 STUDENT register
 # =========================================================
-# @app.post("/register-student")
-# def register_student(
-#     name: str = Form(...),
-#     email: str = Form(...),
-#     mobile: str = Form(...),
-#     password: str = Form(...),
-# ):
-#     db = SessionLocal()
-#     try:
-#         # ✅ Generate SAFE & UNIQUE student_id
-#         student_id = f"STD{uuid.uuid4().hex[:6].upper()}"
-
-#         # ❌ Email already exists check
-#         if db.query(Student).filter(Student.email == email).first():
-#             return {
-#                 "status": "error",
-#                 "message": "Email already registered!"
-#             }
-
-#         # 🔐 Password bcrypt hash
-#         final_hash = bcrypt.hashpw(
-#             password.encode("utf-8"),
-#             bcrypt.gensalt()
-#         ).decode("utf-8")
-
-#         # ✅ Create new student
-#         new_student = Student(
-#             student_id=student_id,
-#             name=name,
-#             email=email,
-#             mobile=mobile,
-#             password=final_hash,
-#         )
-
-#         db.add(new_student)
-#         db.commit()
-
-#         return {
-#             "status": "success",
-#             "message": "Student registered successfully",
-#             "student_id": student_id,
-#         }
-
-#     except Exception as e:
-#         db.rollback()
-#         return {
-#             "status": "error",
-#             "message": str(e)
-#         }
-
-#     finally:
-#         db.close()
-
-
 @app.post("/register-student")
 def register_student(
     name: str = Form(...),
@@ -970,87 +888,6 @@ def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
             "status": "error",
             "message": "OTP verification failed"
         }
-
-
-# @app.post("/my-courses")
-# def my_courses(student_id: str = Form(...)):
-#     db = SessionLocal()
-
-#     try:
-#         purchases = db.query(Purchase).filter(
-#             Purchase.student_id == student_id
-#         ).all()
-
-#         result = []
-
-#         for p in purchases:
-#             course = db.query(Course).filter(
-#                 Course.id == p.course_id
-#             ).first()
-
-#             videos = db.query(Video).filter(
-#                 Video.course_id == course.id
-#             ).all()
-
-#             result.append({
-#                 "id": course.id,
-#                 "course_slug": course.course_slug,
-#                 "name": course.name,
-#                 "videos": [
-#                     {
-#                         "video_url": v.video_url,
-#                         "title": v.title
-#                     } for v in videos
-#                 ]
-#             })
-
-#         return {"courses": result}
-
-#     finally:
-#         db.close()
-
-# @app.post("/my-courses")
-# def my_courses(student_id: str = Form(...)):
-#     db = SessionLocal()
-
-#     try:
-#         result = []
-
-#         # =========================
-#         # 1️⃣ PURCHASED COURSES
-#         # =========================
-#         purchases = db.query(Purchase).filter(
-#             Purchase.student_id == student_id
-#         ).all()
-
-#         purchased_course_ids = set()
-
-#         for p in purchases:
-#             course = db.query(Course).filter(
-#                 Course.id == p.course_id
-#             ).first()
-
-#             if not course:
-#                 continue
-
-#             purchased_course_ids.add(course.id)
-
-#             videos = db.query(Video).filter(
-#                 Video.course_id == course.id
-#             ).all()
-
-#             result.append({
-#                 "id": course.id,
-#                 "course_slug": course.course_slug,
-#                 "name": course.name,
-#                 "videos": [
-#                     {
-#                         "video_url": v.video_url,
-#                         "title": v.title
-#                     } for v in videos
-#                 ]
-#             })
-
 
 @app.post("/my-courses")
 def my_courses(student_id: str = Form(...)):
