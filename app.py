@@ -89,7 +89,6 @@ print("SERVICE:", TWILIO_VERIFY_SERVICE_SID)
 
 
 
-
 # =========================================================
 # 1️⃣ FASTAPI APP SETUP
 # =========================================================
@@ -128,7 +127,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 # If not found → use LOCAL PostgreSQL
 if not DATABASE_URL:
     DATABASE_URL = "postgresql://postgres:sagarsahA%401@localhost:5432/CBT"
-
+# DATABASE_URL=postgresql://postgres:XomoIxVCclgIUoMxqcUTAroBuZvvxhel@gondola.proxy.rlwy.net:15219/railway
 print("Using DB URL:", DATABASE_URL)
 
 # Create engine
@@ -255,6 +254,17 @@ class Purchase(Base):
     student_id = Column(String)
     course_id = Column(Integer)
     purchased_at = Column(String, default=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+class PDFMaterial(Base):
+    __tablename__ = "pdf_materials"
+    __table_args__ = {"schema": "cbt"}
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String)
+    pdf_url = Column(Text)
+    course_id = Column(Integer, nullable=True)
+    pdf_type = Column(String)   # course / standalone
+    price = Column(Integer, default=0)
 
 
 
