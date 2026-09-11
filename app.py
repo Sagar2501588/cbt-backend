@@ -1034,6 +1034,61 @@ def course_details(slug: str):
     finally:
         db.close()
 
+# @app.post("/cloudinary-webhook")
+# async def cloudinary_webhook(data: dict):
+#     print("🔥 FULL DATA:", data)
+
+#     db = SessionLocal()
+
+#     try:
+#         public_id = data.get("public_id")
+#         secure_url = data.get("secure_url")
+#         asset_folder = data.get("asset_folder")
+
+#         print("📦 PUBLIC ID:", public_id)
+#         print("📁 FOLDER:", asset_folder)
+#         print("🌐 URL:", secure_url)
+
+#         # ✅ Validate folder
+#         if not asset_folder:
+#             return {"error": "Folder missing"}
+
+#         parts = asset_folder.split("/")
+
+#         if len(parts) < 2:
+#             return {"error": "Invalid folder format"}
+
+#         course_slug = parts[1]
+
+#         # ✅ Find course
+#         course = db.query(Course).filter(
+#             Course.course_slug == course_slug
+#         ).first()
+
+#         if not course:
+#             return {"error": "course not found"}
+
+#         # ✅ Save video
+#         new_video = Video(
+#             course_id=course.id,
+#             title=public_id,   # video name
+#             video_url=secure_url,
+#             created_at=str(datetime.now())
+#         )
+
+#         db.add(new_video)
+#         db.commit()
+
+#         return {"status": "saved"}
+
+#     except Exception as e:
+#         db.rollback()
+#         print("❌ ERROR:", e)
+#         return {"error": str(e)}
+
+#     finally:
+#         db.close()
+
 @app.post("/cloudinary-webhook")
 async def cloudinary_webhook(data: dict):
     print("🔥 FULL DATA:", data)
@@ -1047,20 +1102,18 @@ async def cloudinary_webhook(data: dict):
 
         print("📦 PUBLIC ID:", public_id)
         print("📁 FOLDER:", asset_folder)
-        print("🌐 URL:", secure_url)
 
-        # ✅ Validate folder
         if not asset_folder:
             return {"error": "Folder missing"}
 
         parts = asset_folder.split("/")
 
-        if len(parts) < 2:
-            return {"error": "Invalid folder format"}
+        # Example:
+        # courses/sankalp-b1
+        # courses/sankalp-b1/pdfs
 
         course_slug = parts[1]
 
-        # ✅ Find course
         course = db.query(Course).filter(
             Course.course_slug == course_slug
         ).first()
@@ -1068,22 +1121,41 @@ async def cloudinary_webhook(data: dict):
         if not course:
             return {"error": "course not found"}
 
-        # ✅ Save video
-        new_video = Video(
+        # =====================
+        # PDF Upload
+        # =====================
+        if len(parts) > 2 and parts[2] == "pdfs":
+
+            pdf = PDFMaterial(
+                title=public_id,
+                pdf_url=secure_url,
+                course_id=course.id,
+                pdf_type="course",
+                price=0
+            )
+
+            db.add(pdf)
+            db.commit()
+
+            return {"status": "pdf saved"}
+
+        # =====================
+        # Video Upload
+        # =====================
+        video = Video(
             course_id=course.id,
-            title=public_id,   # video name
+            title=public_id,
             video_url=secure_url,
             created_at=str(datetime.now())
         )
 
-        db.add(new_video)
+        db.add(video)
         db.commit()
 
-        return {"status": "saved"}
+        return {"status": "video saved"}
 
     except Exception as e:
         db.rollback()
-        print("❌ ERROR:", e)
         return {"error": str(e)}
 
     finally:
