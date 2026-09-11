@@ -899,6 +899,80 @@ def verify_mobile(mobile: str = Form(...), otp: str = Form(...)):
             "message": "OTP verification failed"
         }
 
+# @app.post("/my-courses")
+# def my_courses(student_id: str = Form(...)):
+#     db = SessionLocal()
+
+#     try:
+#         result = []
+
+#         # =========================
+#         # 1️⃣ PURCHASED COURSES
+#         # =========================
+#         purchases = db.query(Purchase).filter(
+#             Purchase.student_id == student_id
+#         ).all()
+
+#         purchased_course_ids = set()
+
+#         for p in purchases:
+#             course = db.query(Course).filter(
+#                 Course.id == p.course_id
+#             ).first()
+
+#             if not course:
+#                 continue
+
+#             purchased_course_ids.add(course.id)
+
+#             videos = db.query(Video).filter(
+#                 Video.course_id == course.id
+#             ).all()
+
+#             result.append({
+#                 "id": course.id,
+#                 "course_slug": course.course_slug,
+#                 "name": course.name,
+#                 "videos": [
+#                     {
+#                         "video_url": v.video_url,
+#                         "title": v.title
+#                     } for v in videos
+#                 ]
+#             })
+
+#         # =========================
+#         # 🔥 2️⃣ FREE COURSE (FIXED)
+#         # =========================
+#         free_course = db.query(Course).filter(
+#             Course.course_slug == "free-content"
+#         ).first()
+
+#         # 👉 IMPORTANT FIX HERE
+#         if free_course and free_course.id not in purchased_course_ids:
+
+#             videos = db.query(Video).filter(
+#                 Video.course_id == free_course.id
+#             ).all()
+
+#             result.append({
+#                 "id": free_course.id,
+#                 "course_slug": free_course.course_slug,
+#                 "name": free_course.name,
+#                 "videos": [
+#                     {
+#                         "video_url": v.video_url,
+#                         "title": v.title
+#                     } for v in videos
+#                 ]
+#             })
+
+#         return {"courses": result}
+
+#     finally:
+#         db.close()
+
+
 @app.post("/my-courses")
 def my_courses(student_id: str = Form(...)):
     db = SessionLocal()
@@ -929,41 +1003,70 @@ def my_courses(student_id: str = Form(...)):
                 Video.course_id == course.id
             ).all()
 
+            pdfs = db.query(PDFMaterial).filter(
+                PDFMaterial.course_id == course.id
+            ).all()
+
             result.append({
                 "id": course.id,
                 "course_slug": course.course_slug,
                 "name": course.name,
+
                 "videos": [
                     {
                         "video_url": v.video_url,
                         "title": v.title
                     } for v in videos
+                ],
+
+                "pdfs": [
+                    {
+                        "id": p.id,
+                        "title": p.title,
+                        "pdf_url": p.pdf_url,
+                        "pdf_type": p.pdf_type,
+                        "price": p.price
+                    } for p in pdfs
                 ]
             })
 
         # =========================
-        # 🔥 2️⃣ FREE COURSE (FIXED)
+        # 2️⃣ FREE COURSE
         # =========================
         free_course = db.query(Course).filter(
             Course.course_slug == "free-content"
         ).first()
 
-        # 👉 IMPORTANT FIX HERE
         if free_course and free_course.id not in purchased_course_ids:
 
             videos = db.query(Video).filter(
                 Video.course_id == free_course.id
             ).all()
 
+            pdfs = db.query(PDFMaterial).filter(
+                PDFMaterial.course_id == free_course.id
+            ).all()
+
             result.append({
                 "id": free_course.id,
                 "course_slug": free_course.course_slug,
                 "name": free_course.name,
+
                 "videos": [
                     {
                         "video_url": v.video_url,
                         "title": v.title
                     } for v in videos
+                ],
+
+                "pdfs": [
+                    {
+                        "id": p.id,
+                        "title": p.title,
+                        "pdf_url": p.pdf_url,
+                        "pdf_type": p.pdf_type,
+                        "price": p.price
+                    } for p in pdfs
                 ]
             })
 
