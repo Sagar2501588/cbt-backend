@@ -1150,20 +1150,18 @@ def course_details(slug: str):
 
 #         print("📦 PUBLIC ID:", public_id)
 #         print("📁 FOLDER:", asset_folder)
-#         print("🌐 URL:", secure_url)
 
-#         # ✅ Validate folder
 #         if not asset_folder:
 #             return {"error": "Folder missing"}
 
 #         parts = asset_folder.split("/")
 
-#         if len(parts) < 2:
-#             return {"error": "Invalid folder format"}
+#         # Example:
+#         # courses/sankalp-b1
+#         # courses/sankalp-b1/pdfs
 
 #         course_slug = parts[1]
 
-#         # ✅ Find course
 #         course = db.query(Course).filter(
 #             Course.course_slug == course_slug
 #         ).first()
@@ -1171,22 +1169,41 @@ def course_details(slug: str):
 #         if not course:
 #             return {"error": "course not found"}
 
-#         # ✅ Save video
-#         new_video = Video(
+#         # =====================
+#         # PDF Upload
+#         # =====================
+#         if len(parts) > 2 and parts[2] == "pdfs":
+
+#             pdf = PDFMaterial(
+#                 title=public_id,
+#                 pdf_url=secure_url,
+#                 course_id=course.id,
+#                 pdf_type="course",
+#                 price=0
+#             )
+
+#             db.add(pdf)
+#             db.commit()
+
+#             return {"status": "pdf saved"}
+
+#         # =====================
+#         # Video Upload
+#         # =====================
+#         video = Video(
 #             course_id=course.id,
-#             title=public_id,   # video name
+#             title=public_id,
 #             video_url=secure_url,
 #             created_at=str(datetime.now())
 #         )
 
-#         db.add(new_video)
+#         db.add(video)
 #         db.commit()
 
-#         return {"status": "saved"}
+#         return {"status": "video saved"}
 
 #     except Exception as e:
 #         db.rollback()
-#         print("❌ ERROR:", e)
 #         return {"error": str(e)}
 
 #     finally:
@@ -1211,7 +1228,6 @@ async def cloudinary_webhook(data: dict):
 
         parts = asset_folder.split("/")
 
-        # Example:
         # courses/sankalp-b1
         # courses/sankalp-b1/pdfs
 
@@ -1224,13 +1240,27 @@ async def cloudinary_webhook(data: dict):
         if not course:
             return {"error": "course not found"}
 
+        # ====================================
+        # Clean Cloudinary Random Suffix
+        # Example:
+        # RC_GC_Lecture_1_uhjrkm
+        # -> RC GC Lecture 1
+        # ====================================
+
+        clean_title = public_id
+
+        if "_" in public_id:
+            clean_title = public_id.rsplit("_", 1)[0]
+
+        clean_title = clean_title.replace("_", " ")
+
         # =====================
         # PDF Upload
         # =====================
         if len(parts) > 2 and parts[2] == "pdfs":
 
             pdf = PDFMaterial(
-                title=public_id,
+                title=clean_title,
                 pdf_url=secure_url,
                 course_id=course.id,
                 pdf_type="course",
@@ -1247,7 +1277,7 @@ async def cloudinary_webhook(data: dict):
         # =====================
         video = Video(
             course_id=course.id,
-            title=public_id,
+            title=clean_title,
             video_url=secure_url,
             created_at=str(datetime.now())
         )
@@ -1259,6 +1289,7 @@ async def cloudinary_webhook(data: dict):
 
     except Exception as e:
         db.rollback()
+        print("❌ ERROR:", e)
         return {"error": str(e)}
 
     finally:
