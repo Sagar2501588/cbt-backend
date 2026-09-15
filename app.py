@@ -88,6 +88,12 @@ print("TOKEN:", TWILIO_AUTH_TOKEN)
 print("SERVICE:", TWILIO_VERIFY_SERVICE_SID)
 
 
+try:
+    account = twilio_client.api.accounts(TWILIO_ACCOUNT_SID).fetch()
+    print("TWILIO ACCOUNT OK:", account.friendly_name)
+except Exception as e:
+    print("TWILIO LOGIN FAILED:", e)
+
 
 # =========================================================
 # 1️⃣ FASTAPI APP SETUP
