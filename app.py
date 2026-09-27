@@ -32,6 +32,13 @@ from dotenv import load_dotenv
 load_dotenv()
 import random
 from datetime import datetime, timedelta
+import os
+import requests
+import random
+from functools import lru_cache
+import requests
+from urllib.parse import quote
+import requests
 
 SECRET_KEY = "Babi@2302"
 
@@ -83,9 +90,9 @@ TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID")
 
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
-print("SID:", TWILIO_ACCOUNT_SID)
-print("TOKEN:", TWILIO_AUTH_TOKEN)
-print("SERVICE:", TWILIO_VERIFY_SERVICE_SID)
+# print("SID:", TWILIO_ACCOUNT_SID)
+# print("TOKEN:", TWILIO_AUTH_TOKEN)
+# print("SERVICE:", TWILIO_VERIFY_SERVICE_SID)
 
 
 try:
@@ -1382,6 +1389,9 @@ def forgot_password(mobile: str = Form(...)):
         print("📱 RAW:", raw_mobile)
         print("📱 FORMATTED:", formatted_mobile)
         print("📱 NORMALIZED:", plain_mobile)
+        print("SID:", TWILIO_ACCOUNT_SID)
+        print("TOKEN:", TWILIO_AUTH_TOKEN)
+        print("SERVICE:", TWILIO_VERIFY_SERVICE_SID)
 
         # ✅ FINAL FIX (SAME AS RESET PASSWORD)
         # user = db.query(Student).filter(
@@ -1486,6 +1496,74 @@ def reset_password(mobile: str = Form(...), password: str = Form(...)):
 
     finally:
         db.close()
+
+
+
+# @app.get("/api/blogs")
+# def get_blogs():
+#     query = '*[_type=="post"]'
+
+#     url = (
+#     "https://2rxx6xjj.api.sanity.io/"
+#     "v2021-10-21/data/query/production"
+#     f"?query={query}"
+# )
+
+#     response = requests.get(url)
+
+#     return response.json()
+
+@lru_cache(maxsize=1)
+def fetch_blogs():
+
+    query = '''
+*[_type=="post"] | order(_createdAt desc){
+    _id,
+    title,
+    slug,
+    "excerpt": body[0].children[0].text,
+    mainImage
+}
+'''
+
+    url = (
+        "https://2rxx6xjj.api.sanity.io/"
+        "v2021-10-21/data/query/production"
+        f"?query={query}"
+    )
+
+    return requests.get(url).json()
+
+@app.get("/api/blogs")
+def get_blogs():
+    return fetch_blogs()
+
+@app.get("/api/blog/{slug}")
+def get_blog(slug: str):
+
+    query = f'''
+    *[_type=="post" && slug.current == "{slug}"][0]{{
+        title,
+        body,
+        mainImage,
+        slug
+    }}
+    '''
+
+    url = (
+        "https://2rxx6xjj.api.sanity.io/"
+        "v2021-10-21/data/query/production"
+        f"?query={quote(query)}"
+    )
+
+    response = requests.get(url)
+
+    print("URL:", url)
+    print("STATUS:", response.status_code)
+    print("RESPONSE:", response.text)
+
+    return response.json()
+
 
 # =========================================================
 # 11️⃣ ROOT CHECK
