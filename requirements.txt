@@ -12,3 +12,4 @@ python-dotenv
 twilio
 razorpay
 numpy
+psycopg
