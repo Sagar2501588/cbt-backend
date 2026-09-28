@@ -39,6 +39,7 @@ from functools import lru_cache
 import requests
 from urllib.parse import quote
 import requests
+import os
 
 SECRET_KEY = "Babi@2302"
 
@@ -82,7 +83,8 @@ def generate_otp():
     return str(random.randint(100000, 999999))
 
 
-
+print("TWILIO_ACCOUNT_SID =", os.getenv("TWILIO_ACCOUNT_SID"))
+print("TWILIO_AUTH_TOKEN =", os.getenv("TWILIO_AUTH_TOKEN"))
 
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
