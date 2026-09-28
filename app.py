@@ -1498,21 +1498,6 @@ def reset_password(mobile: str = Form(...), password: str = Form(...)):
         db.close()
 
 
-
-# @app.get("/api/blogs")
-# def get_blogs():
-#     query = '*[_type=="post"]'
-
-#     url = (
-#     "https://2rxx6xjj.api.sanity.io/"
-#     "v2021-10-21/data/query/production"
-#     f"?query={query}"
-# )
-
-#     response = requests.get(url)
-
-#     return response.json()
-
 @lru_cache(maxsize=1)
 def fetch_blogs():
 
