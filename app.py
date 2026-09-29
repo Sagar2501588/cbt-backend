@@ -40,6 +40,7 @@ import requests
 from urllib.parse import quote
 import requests
 import os
+from sqlalchemy import DateTime 
 
 SECRET_KEY = "Babi@2302"
 
@@ -197,8 +198,11 @@ class Student(Base):
     password = Column(String)
     reset_token = Column(String, nullable=True)   # ✅ ADD THIS
     otp = Column(String, nullable=True)
-    otp_expiry = Column(String, nullable=True)
-    created_at = Column(String, default=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    otp_expiry = Column(DateTime, nullable=True)
+    created_at = Column(
+    String,
+    default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+)
 
 
 class MobileVerification(Base):
