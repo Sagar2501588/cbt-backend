@@ -183,6 +183,7 @@ class Question(Base):
     correct_answer = Column(Text)    # MSQ + NAT
 
     status = Column(String, default="inactive")
+    question_part = Column(Text, nullable=True)
 
 
 
@@ -434,6 +435,7 @@ def get_questions(exam_id: int):
                 # "correct_option": q.correct_option,          # optional (MCQ)
                 # "correct_answer": q.correct_answer,          # optional (NAT/MSQ)
                 "status": q.status,
+                "question_part": q.question_part,
             })
 
         return result
@@ -1556,10 +1558,64 @@ def get_blog(slug: str):
     return response.json()
 
 
+
+
+
+from sqlalchemy import func
+
+@app.post("/my-mock-tests")
+def my_mock_tests(student_id: str = Form(...)):
+    db = SessionLocal()
+
+    try:
+        course = db.query(Course).filter(
+            Course.course_slug == "gate-geomatics-mock-test"
+        ).first()
+
+        if not course:
+            return {"tests": [], "message": "Course not found"}
+
+        purchase = db.query(Purchase).filter(
+            Purchase.student_id == student_id,
+            Purchase.course_id == course.id
+        ).first()
+
+        if not purchase:
+            return {"tests": [], "message": "Not purchased"}
+
+        exams = (
+            db.query(
+                Question.exam_id,
+                func.count(Question.id).label("total_questions")
+            )
+            .filter(
+                func.lower(Question.status) == "active",
+                Question.exam_id.isnot(None)
+            )
+            .group_by(Question.exam_id)
+            .order_by(Question.exam_id)
+            .all()
+        )
+
+        return {
+            "tests": [
+                {
+                    "exam_id": exam.exam_id,
+                    "title": f"Test {index}",
+                    "total_questions": exam.total_questions
+                }
+                for index, exam in enumerate(exams, start=1)
+            ]
+        }
+
+    finally:
+        db.close()
+
+
+
 # =========================================================
 # 11️⃣ ROOT CHECK
 # =========================================================
 @app.get("/")
 def root():
     return {"status": "✅ Backend running successfully!"}
-
