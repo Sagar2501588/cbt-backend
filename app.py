@@ -41,6 +41,7 @@ from urllib.parse import quote
 import requests
 import os
 from sqlalchemy import DateTime 
+from sqlalchemy import Computed
 
 SECRET_KEY = "Babi@2302"
 
@@ -183,8 +184,13 @@ class Question(Base):
     correct_answer = Column(Text)    # MSQ + NAT
 
     status = Column(String, default="inactive")
-    question_part = Column(Text, nullable=True)
-
+    question_part = Column(
+    Text,
+    Computed(
+        r"NULLIF(substring(question_text, '^\(([^)]+)\)'), '')",
+        persisted=True
+    )
+)
 
 
 class Student(Base):
